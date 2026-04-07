@@ -1,27 +1,20 @@
 <template>
   <div class="container-fluid px-0">
-    <loading
-      v-model:active="isLoading"
-      :can-cancel="false"
-      :is-full-page="true"
-    />
+    <loading v-model:active="isLoading" :can-cancel="false" :is-full-page="true" />
     <div class="row mx-0">
       <h1 class="report-h1 fw-bold">帳號角色管理</h1>
     </div>
-    <form
-      class="row mx-0"
-      :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
-    >
+    <form class="row mx-0" :class="{ 'report-header': !ischange, 'report-header-dark': ischange }">
       <div class="row align-items-center col-md-auto col-12 pe-0">
-        <label class="col-md-auto col-form-label fw-bolder pe-0"
-          >帳號資料:</label
-        >
+        <label class="col-md-auto col-form-label fw-bolder pe-0">帳號搜尋:</label>
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12 px-0">
-        <n-mention
-          :options="option"
-          default-value="@"
+      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12 px-0" style="min-width: 300px;">
+        <n-select
           v-model:value="searchvalue"
+          filterable
+          placeholder="請輸入姓名或工號搜尋"
+          :options="option"
+          @update:value="handleSelect"
         />
       </div>
       <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
@@ -35,61 +28,32 @@
       </div>
     </form>
     <hr />
-    <form
-      v-if="submitdata"
-      class="row mx-0"
-      :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
-    >
+    
+    <form v-if="submitdata && submitdata.users_id" class="row mx-0" :class="{ 'report-header': !ischange, 'report-header-dark': ischange }">
       <div class="row mx-auto px-0">
         <div class="col-md-3">
-          <label for="labelname" class="form-label fw-bolder">姓名</label>
-          <input
-            type="text"
-            class="form-control"
-            id="labelname"
-            v-model="submitdata.name"
-            disabled
-          />
+          <label class="form-label fw-bolder">姓名</label>
+          <input type="text" class="form-control" v-model="submitdata.name" disabled />
         </div>
         <div class="col-md-3 mt-2 mt-md-0">
-          <label for="labelid" class="form-label fw-bolder">公號</label>
-          <input
-            type="text"
-            class="form-control"
-            id="labelid"
-            v-model="submitdata.users_id"
-            disabled
-          />
+          <label class="form-label fw-bolder">工號</label>
+          <input type="text" class="form-control" v-model="submitdata.users_id" disabled />
         </div>
         <div class="col-md-3 mt-2 mt-md-0">
-          <label for="labelid" class="form-label fw-bolder">目前角色</label>
-          <input
-            type="text"
-            class="form-control"
-            id="labelid"
-            v-model="submitdata.role_name"
-            disabled
-          />
+          <label class="form-label fw-bolder">目前角色</label>
+          <input type="text" class="form-control" v-model="submitdata.role_name" disabled />
         </div>
         <div class="col-md-3 mt-2 mt-md-0">
-          <label for="" class="form-label fw-bolder">修改成的角色</label>
+          <label class="form-label fw-bolder">修改成的角色</label>
           <select class="form-select" v-model="choserole">
-            <option selected disabled>請選擇</option>
-            <option
-              v-for="item in roles"
-              :key="item.role_name"
-              :value="item.role_id"
-            >
+            <option value="請選擇" disabled>請選擇</option>
+            <option v-for="item in roles" :key="item.role_id" :value="item.role_id">
               {{ item.role_name }}
             </option>
           </select>
         </div>
-        <div
-          class="col col-md-auto mt-3 d-flex flex-column justify-content-end"
-        >
-          <button type="button" class="btn btn-success" @click="revise">
-            送出
-          </button>
+        <div class="col col-md-auto mt-3 d-flex flex-column justify-content-end">
+          <button type="button" class="btn btn-success" @click="revise">送出</button>
         </div>
       </div>
     </form>
@@ -98,114 +62,93 @@
 
 <script setup>
 import axios from "axios";
-import { NMention } from "naive-ui";
+import { NSelect } from "naive-ui"; // 改引用 NSelect
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
-import { ref, inject } from "vue";
+import { ref, inject, onMounted } from "vue";
+
 const swal = inject("$swal");
-async function NotAlert(text) {
-  swal({
-    icon: "error",
-    title: `${text}`,
-    showConfirmButton: false,
-  });
-}
-async function SeviseroleAlert(text) {
-  swal({
-    icon: "success",
-    title: `${text}`,
-    showConfirmButton: false,
-  });
-}
 const ischange = inject("ischange");
 const isLoading = ref(false);
 const submitdata = ref(null);
 const option = ref([]);
-
+const searchvalue = ref(null);
 const choserole = ref("請選擇");
-const roles = ref(null);
+const roles = ref([]);
+const userdata = ref([]);
+
+async function NotAlert(text) {
+  swal({ icon: "error", title: text, showConfirmButton: false, timer: 1500 });
+}
+async function SeviseroleAlert(text) {
+  swal({ icon: "success", title: text, showConfirmButton: false, timer: 1500 });
+}
+
 const getroles = async () => {
   const url = `${import.meta.env.VITE_NODE_URL}/isauth/roles`;
   const res = await axios.get(url);
-  const data = res.data.rows;
-  roles.value = [...data];
+  roles.value = res.data.rows || [];
 };
 
-//從後端抓使用者資料後,放到option上面
-const userdata = ref([]);
 async function getdata() {
   isLoading.value = true;
   await getroles();
-  const arr = [];
   const url = `${import.meta.env.VITE_NODE_URL}/isauth/userrole`;
   const res = await axios.get(url);
   isLoading.value = false;
-  userdata.value = [...res.data.rows];
-  userdata.value.forEach((element) => {
-    arr.push({
-      label: `${element.name}_${element.users_id}_${element.role_name}`,
-      value: `${element.name}_${element.users_id}_${element.role_name}`,
-    });
-  });
-  option.value = [...arr];
-  console.log(option.value);
+  
+  userdata.value = res.data.rows || [];
+  // 處理選項，移除底線，改用更易讀的格式
+  option.value = userdata.value
+    .filter(item => item.name && item.users_id) // 過濾掉 null 或不完整的資料
+    .map(item => ({
+      label: `${item.users_id} ${item.name}    ${item.role_name || ''}`,
+      value: item.users_id // value 只存 ID，搜尋更準確
+    }));
 }
 
-(async function startfun() {
-  await getdata();
-})();
+onMounted(getdata);
 
-const searchvalue = ref();
+// 當選擇下拉選單時觸發
+const handleSelect = (val) => {
+  searchvalue.value = val;
+};
+
 const search = async () => {
+  if (!searchvalue.value) return NotAlert("請先選擇帳號");
   try {
     isLoading.value = true;
-    let value = "";
-    //把@去掉
-    if (searchvalue.value.includes("@")) {
-      value = searchvalue.value.replace("@", "");
-    }
-    let chose = {
-      name: value.split("_")[0],
-      id: value.split("_")[1],
-      role_name: value.split("_")[2],
-    };
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/role/${chose.id}`;
+    const url = `${import.meta.env.VITE_NODE_URL}/isauth/role/${searchvalue.value}`;
     const res = await axios.get(url);
-    submitdata.value = res.data.rows[0];
+    if (res.data.rows && res.data.rows.length > 0) {
+      submitdata.value = res.data.rows[0];
+    } else {
+      NotAlert("找不到該使用者");
+    }
     isLoading.value = false;
   } catch (error) {
     isLoading.value = false;
-    return NotAlert("格式不正確");
+    NotAlert("查詢失敗");
   }
 };
 
 const revise = async () => {
   try {
+    if (choserole.value === "請選擇") return NotAlert("請選擇修正成的角色");
     isLoading.value = true;
-    if (choserole.value == "請選擇") {
-      isLoading.value = false;
-      return NotAlert("請選擇修正成的角色");
-    }
     const users_id = submitdata.value.users_id;
-    const payload = {
+    await axios.patch(`${import.meta.env.VITE_NODE_URL}/isauth/role/${users_id}`, {
       role: choserole.value,
-    };
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/role/${users_id}`;
-    await axios.patch(url, payload);
-
-    //刷新選擇的帳號資料
+    });
     await getdata();
-    //清空選擇
     submitdata.value = null;
     choserole.value = "請選擇";
+    searchvalue.value = null;
     isLoading.value = false;
-    searchvalue.value = "@";
     SeviseroleAlert("修正成功");
   } catch (error) {
     isLoading.value = false;
-    return NotAlert("修正失敗");
+    NotAlert("修正失敗");
   }
 };
 </script>
-
-<style lang="scss" scoped></style>

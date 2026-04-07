@@ -1151,7 +1151,7 @@ function ctrlmenu() {
       },
       {
         key: "Version",
-        label: "版本v1.0.0",
+        label: "版本v1.0.1",
         icon: renderIcon(Book),
       },
     ];

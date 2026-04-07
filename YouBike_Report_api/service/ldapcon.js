@@ -96,32 +96,40 @@ function searchAsync(base, searchOptions) {
 
 const remakeData = (searchResult) => {
   const data = [...searchResult];
-  const resdata = [];
-
-  const newdata = data.map((item) => {
-    const jsonitem = JSON.parse(item);
-    return jsonitem.attributes[0];
-  });
   let arr = [];
-  newdata.forEach((item, index) => {
-    if (!item) {
-      return;
-    }
-    const user_data = {
-      name: item.values[0].split("_")[1],
-      id: item.values[0].split("_")[0],
-    };
-    //GA開頭PUSH
-    if (/^GA\d+$/.test(user_data.id)) {
-      arr.push(user_data);
-    }
-    //G開頭PUSH
-    if (/^G\d+$/.test(user_data.id) && !/^GB\d+$/.test(user_data.id)) {
-      arr.push(user_data);
-    }
-    //GB開頭PUSH
-    if (/^GB\d+$/.test(user_data.id)) {
-      arr.push(user_data);
+
+  data.forEach((item) => {
+    try {
+      const jsonitem = JSON.parse(item);
+      const attr = jsonitem.attributes[0];
+
+      // 1. 檢查屬性是否存在且有值
+      if (!attr || !attr.values || !attr.values[0]) return;
+
+      const rawValue = attr.values[0];
+      const parts = rawValue.split("_");
+
+      // 2. 檢查分割後的長度，避免 null 導致的錯誤
+      if (parts.length < 2) return;
+
+      const user_data = {
+        id: parts[0],
+        name: parts[1],
+      };
+
+      // 3. 排除值為 "null" 字串或 undefined 的資料
+      if (!user_data.id || user_data.id === "null" || !user_data.name || user_data.name === "null") {
+        return;
+      }
+
+      // 4. 正規表達式過濾
+      if (/^GA\d+$/.test(user_data.id) || 
+          (/^G\d+$/.test(user_data.id) && !/^GB\d+$/.test(user_data.id)) ||
+          /^GB\d+$/.test(user_data.id)) {
+        arr.push(user_data);
+      }
+    } catch (e) {
+      console.error("解析 LDAP 資料錯誤:", e);
     }
   });
   return arr;
