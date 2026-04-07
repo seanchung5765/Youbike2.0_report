@@ -1,0 +1,8 @@
+version: "3.7"
+services:
+  myweb:
+    build:
+      context: .
+    image: asia-east1-docker.pkg.dev/upheld-now-268802/cloudrun/youbike-report
+    ports:
+      - "3000:3000"

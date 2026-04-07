@@ -1,0 +1,1 @@
+import{o as s,c as o,e}from"./index-96755ee0.js";const t={class:"container-fluid border border-3 pt-3"},c=e("div",{class:"row mx-0 mb-3"},[e("h1",{class:"report-h1 fw-bold"},"發送確認")],-1),r=[c],i={__name:"CheckMessageView",setup(a){return(_,n)=>(s(),o("div",t,r))}};export{i as default};

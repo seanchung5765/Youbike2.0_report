@@ -1,0 +1,16 @@
+
+
+
+@import "bootstrap/scss/functions";
+@import "./helpers/variables";
+@import "bootstrap/scss/bootstrap";
+
+@import "../assets//helpers/reportcss/report_header";
+@import "../assets/helpers/reportcss/report_title_color";
+@import "../assets/helpers/reportcss/report_line-hight";
+
+
+
+
+//整體字形
+@import "../assets/helpers/font_NotoSans";
