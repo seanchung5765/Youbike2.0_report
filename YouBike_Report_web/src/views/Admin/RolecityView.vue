@@ -6,25 +6,27 @@
       :is-full-page="true"
     />
     <div class="row mx-0">
-      <h1 class="report-h1 fw-bold">帳號城市權限管理</h1>
+      <h1 class="report-h1 fw-bold">使用者可閱縣市管理</h1>
     </div>
     <form
       class="row mx-0"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
     >
       <div class="row align-items-center col-md-auto col-12 pe-0">
-        <label class="col-md-auto col-form-label fw-bolder pe-0"
-          >帳號資料:</label
-        >
+        <label class="col-md-auto col-form-label fw-bolder pe-0">帳號資料:</label>
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12 px-0" style="min-width: 250px;">
-        <n-select
-          v-model:value="searchvalue"
-          filterable
-          placeholder="請輸入姓名或工號"
-          :options="option"
-        />
-      </div>
+        <div class="row mx-0 mx-md-2 align-items-center col-md-4 col-12 px-0">
+          
+          <n-select
+            v-model:value="searchvalue"
+            :options="option"
+            placeholder="請選擇或輸入帳號..."
+            filterable
+            clearable
+            style="min-width: 300px;" 
+          />
+          
+        </div>
       <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
         <button
           type="button"
@@ -37,7 +39,7 @@
     </form>
     <hr />
     <div v-if="checkdata.length > 0">
-      <h2 class="mt-2 fw-bold">{{ showname.split('_')[1] }} {{ showname.split('_')[0] }} </h2>
+      <h2 class="mt-2 fw-bold">{{ showname }}</h2>
       <h3 class="mt-2 fw-bold">城市:</h3>
       <template v-for="(item, index) in checkdata" :key="`${index}111`">
         <div class="form-check form-check-inline">
@@ -47,13 +49,14 @@
             :id="item.city_name"
             v-model="item.isselect"
           />
-          <label class="form-check-label fw-bold" :for="item.city_name">{{
-            item.city_name
-          }}</label>
+          <label class="form-check-label fw-bold" :for="item.city_name">
+            {{ item.city_name }}
+          </label>
         </div>
       </template>
 
       <div style="display: flex; justify-content: flex-start" class="mt-3">
+        <!-- 💡 修正了原本的 type="buttno" 錯字 -->
         <button type="button" class="btn btn-secondary me-3" @click="cancel">
           取消
         </button>
@@ -66,141 +69,111 @@
 </template>
 
 <script setup>
-import axios from "axios";
-import { NSelect } from "naive-ui"; // 改用 NSelect
+import { ref, inject, onMounted } from "vue";
+import { NSelect } from "naive-ui";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
-import { ref, inject } from "vue";
+import { getUserRoles, getUserCities, getAllCities, updateUserCities } from "@/api/admin";
 
 const ischange = inject("ischange");
-const isLoading = ref(false);
-const searchvalue = ref(null); // 改為 null
-const option = ref([]);
 const swal = inject("$swal");
 
-async function NotAlert(text) {
-  swal({
-    icon: "error",
-    title: `${text}`,
-    showConfirmButton: false,
-    timer: 1500
-  });
-}
-async function successAlert(text) {
-  swal({
-    icon: "success",
-    title: `${text}`,
-    showConfirmButton: false,
-    timer: 1500
-  });
-}
-
-const roles = ref(null);
-const getroles = async () => {
-  const url = `${import.meta.env.VITE_NODE_URL}/isauth/roles`;
-  const res = await axios.get(url);
-  const data = res.data.rows;
-  roles.value = [...data];
-};
-
-//從後端抓使用者資料後,放到option上面
-const userdata = ref([]);
-
-async function getdata() {
-  isLoading.value = true;
-  await getroles();
-  const arr = [];
-  const url = `${import.meta.env.VITE_NODE_URL}/isauth/userrole`;
-  const res = await axios.get(url);
-  isLoading.value = false;
-  userdata.value = [...res.data.rows];
-  userdata.value.forEach((element) => {
-    // 為了讓搜尋能同時搜名字跟工號，label 顯示豐富一點
-    arr.push({
-      label: `${element.users_id} ${element.name}`, 
-      value: `${element.name}_${element.users_id}`, // 維持原本的 split 邏輯
-    });
-  });
-  option.value = [...arr];
-}
-
-(async function startfun() {
-  await getdata();
-})();
-
+const isLoading = ref(false);
+const searchvalue = ref("");
+const option = ref([]);
 const checkdata = ref([]);
 const showname = ref("");
 
-const search = async () => {
-  if (!searchvalue.value) return NotAlert("請先選擇帳號");
-  try {
-    // 因為改用 Select，不需要再 replace("@", "")，直接拿 value
-    let value = searchvalue.value;
-    showname.value = value;
-    const selectid = value.split("_")[1];
-    
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/usercity/${selectid}`;
-    const url2 = `${import.meta.env.VITE_NODE_URL}/isauth/citys`;
-    
-    isLoading.value = true;
-    const res = await Promise.all([
-      axios.get(url),
-      axios.get(url2),
-    ]);
-    isLoading.value = false;
-    
-    const persondata = res[0].data.rows;
-    const alldata = res[1].data.rows;
+// 提示視窗封裝
+const showAlert = (icon, text) => swal({ icon, title: text, showConfirmButton: false });
 
-    const persondataarr = persondata.map((item) => item.city_id);
-    const arr = [];
-    alldata.forEach((item, index) => {
-      // 深度拷貝避免影響原資料
-      const tempItem = { ...item };
-      if (persondataarr.includes(item.city_id)) {
-        tempItem.isselect = true;
-      } else {
-        tempItem.isselect = false;
-      }
-      arr.push(tempItem);
-    });
-    checkdata.value = [...arr];
+// 載入初始下拉選單資料
+const getdata = async () => {
+  try {
+    isLoading.value = true;
+    const res = await getUserRoles();
+    
+    // 💡 優化：使用 map 直接轉換格式，取代原本的 forEach + push
+    option.value = res.data.data.map((element) => ({
+      label: `${element.name}_${element.users_id}`,
+      value: `${element.name}_${element.users_id}`,
+    }));
   } catch (error) {
+    console.error("取得使用者列表失敗", error);
+  } finally {
     isLoading.value = false;
-    return NotAlert("格式不正確");
+  }
+};
+
+// 💡 遵循 Vue 3 規範，使用 onMounted 取代原本的立即執行函式 (IIFE)
+onMounted(() => {
+  getdata();
+});
+
+// 搜尋特定使用者的權限
+const search = async () => {
+  try {
+    // 把 @ 去掉並防呆檢查
+    if (!searchvalue.value) {
+      return showAlert("error", "請先選擇帳號");
+    }
+    
+    showname.value = searchvalue.value;
+    const selectid = searchvalue.value.split("_")[1];
+
+    isLoading.value = true;
+    // 💡 優化：Promise.all 內部不需要再加 await
+    const [userCityRes, allCityRes] = await Promise.all([
+      getUserCities(selectid),
+      getAllCities(),
+    ]);
+
+    const userCities = userCityRes.data.data.map((item) => item.city_id);
+    const allCities = allCityRes.data.data;
+
+    // 💡 優化：使用 map 一次性合併資料，取代原本冗長的 forEach if-else 判斷
+      checkdata.value = allCities
+      .filter((city) => city.status === 'active') 
+      .map((city) => ({
+      ...city,
+      isselect: userCities.includes(city.city_id),
+    }));
+
+  } catch (error) {
+    showAlert("error", "讀取資料失敗");
+  } finally {
+    isLoading.value = false;
   }
 };
 
 const cancel = () => {
   checkdata.value = [];
-  searchvalue.value = null; // 清空選取項
 };
 
+// 送出修改
 const submit = async () => {
   try {
-    const id = showname.value.split("_")[1].trim();
-    const arr = [];
-    checkdata.value.forEach((item) => {
-      if (item.isselect) {
-        arr.push({
-          users_id: id,
-          city_id: item.city_id,
-        });
-      }
-    });
-
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/role_citys/${id}`;
-    
     isLoading.value = true;
-    await axios.put(url, arr);
-    isLoading.value = false;
+    const id = showname.value.split("_")[1].trim();
     
-    await successAlert("成功修改");
-    cancel(); // 修改成功後清空畫面
+    // 💡 優化：使用 filter 和 map 組合，取代 forEach + push
+    const payload = checkdata.value
+      .filter((item) => item.isselect)
+      .map((item) => ({
+        users_id: id,
+        city_id: item.city_id,
+      }));
+
+    await updateUserCities(id, payload);
+    
+    cancel();
+    searchvalue.value = null;
+    showAlert("success", "成功修改");
   } catch (error) {
+    console.error(error);
+    showAlert("error", "修改失敗");
+  } finally {
     isLoading.value = false;
-    console.log(error);
-    NotAlert("修改失敗");
   }
 };
 </script>

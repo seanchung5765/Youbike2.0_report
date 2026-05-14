@@ -1,15 +1,19 @@
+<!--負責顯示 首頁四大天王 -->
 <template>
   <div class="container-fluid">
     <n-card style="margin-bottom: 16px">
       <n-tabs type="line" animated size="large">
-        <n-tab-pane name="PageoneView" tab="首頁">
-          <PageOneView />
+        <n-tab-pane name="DailySummaryTab" tab="營運儀表板">
+          <DailySummaryTab />
         </n-tab-pane>
-        <n-tab-pane name="PageTwoView" tab="營運處">
-          <PageTwoView />
+        <n-tab-pane name="RideTrendTab" tab="騎乘數">
+          <RideTrendTab />
         </n-tab-pane>
-        <n-tab-pane name="PageThreeView" tab="見車見位">
-          <PageThreeView />
+        <n-tab-pane name="BikeSlotRateTab" tab="見車見位">
+          <BikeSlotRateTab />
+        <!--</n-tab-pane>
+        <n-tab-pane name="OverviewTab" tab="無車無位">
+          <OverviewTab />-->
         </n-tab-pane>
       </n-tabs>
     </n-card>
@@ -18,9 +22,10 @@
 
 <script setup>
 import { NCard, NTabs, NTabPane } from "naive-ui";
-import PageOneView from "../components/frontpage/PageOneView.vue";
-import PageTwoView from "../components/frontpage/PageTwoView.vue";
-import PageThreeView from "../components/frontpage/PageThreeView.vue";
+import DailySummaryTab from "../components/frontpage/DailySummaryTab.vue";
+import RideTrendTab from "../components/frontpage/RideTrendTab.vue";
+import BikeSlotRateTab from "../components/frontpage/BikeSlotRateTab.vue";
+//import OverviewTab from "../components/frontpage/OverviewTab.vue";
 </script>
 
 <style></style>

@@ -2,427 +2,224 @@
   <div class="container-fluid px-0">
     <loading v-model:active="isLoading" :can-cancel="false" :is-full-page="true" />
     <div class="row mx-0">
-      <h1 class="report-h1 fw-bold">欠費統計(金額區分)</h1>
+      <h1 class="report-h1 fw-bold">欠費統計 (金額區分)</h1>
     </div>
+
     <form
-      class="row mx-0"
+      class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
+      style="display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; overflow-x: auto;"
     >
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto">
+      <div style="width: 130px; flex-shrink: 0;">
         <n-date-picker
-          class="px-0"
           v-model:formatted-value="timestamp"
           type="year"
           :actions="null"
-          :is-date-disabled="disablePreviousDate"
+          clearable
+          placeholder="選擇年份"
           value-format="yyyy"
+          :is-date-disabled="disablePreviousDate"
         />
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <label class="col-md-auto col-form-label px-0 px-md-2 fw-bolder">系統別:</label>
-        <div class="col-md-auto px-0">
-          <select
-            class="form-select form-select-sm"
-            aria-label="car"
-            v-model="category"
-            @change="city = '請選擇'"
-          >
-            <option selected disabled>請選擇</option>
-            <option value="1">1.0</option>
-            <option value="2.0+2.0e">2.0+2.0E</option>
-          </select>
+
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; border-left: 2px solid #ccc; padding-left: 12px;">
+        <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
+        <div style="width: 150px;">
+          <n-select
+            v-model:value="city"
+            :options="cityOptions"
+            placeholder="請選擇"
+          />
         </div>
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <label class="col-md-auto col-form-label px-0 px-md-2 fw-bolder">城市:</label>
-        <div class="col-md-auto px-0">
-          <select class="form-select form-select-sm" aria-label="car" v-model="city">
-            <option selected disabled>請選擇</option>
-            <template v-if="category == 1">
-              <option value="Taipei" v-if="canusecitys.includes(2)">台北市</option>
-              <option value="Newtaipei" v-if="canusecitys.includes(3)">新北市</option>
-              <option value="Taoyuan" v-if="canusecitys.includes(4)">桃園縣</option>
-              <option value="Hsinchu" v-if="canusecitys.includes(5)">新竹市</option>
-              <option value="Miaoli" v-if="canusecitys.includes(7)">苗栗縣</option>
-              <option value="Taichung" v-if="canusecitys.includes(8)">台中市</option>
-            </template>
-            <template v-else-if="category == '2.0+2.0e'">
-              <option value="Taipei2" v-if="canusecitys.includes(2)">台北市2.0</option>
-              <option value="Taipei2E" v-if="canusecitys.includes(2)">台北市2.0E</option>
-              <option value="Newtaipei2" v-if="canusecitys.includes(3)">新北市2.0</option>
-              <option value="Newtaipei2E" v-if="canusecitys.includes(3)">新北市2.0E</option>
-              <option value="Taoyuan2" v-if="canusecitys.includes(4)">桃園市2.0</option>
-              <option value="Taoyuan2E" v-if="canusecitys.includes(4)">桃園市2.0E</option>
-              <option value="Hsinchu2" v-if="canusecitys.includes(5)">新竹市2.0</option>
-              <option value="Hsinchu2E" v-if="canusecitys.includes(5)">新竹市2.0E</option>
-              <option value="Hsinchu_Country2" v-if="canusecitys.includes(6)">新竹縣2.0</option>
-              <option value="Hsinchu_Country2E" v-if="canusecitys.includes(6)">新竹縣2.0E</option>
-              <option value="HsinchuScience2" v-if="canusecitys.includes(20)">竹科2.0</option>
-              <option value="HsinchuScience2E" v-if="canusecitys.includes(20)">竹科2.0E</option>
-              <option value="Miaoli2" v-if="canusecitys.includes(7)">苗栗縣2.0</option>
-              <option value="Miaoli2E" v-if="canusecitys.includes(7)">苗栗縣2.0E</option>
-              <option value="Taichung2" v-if="canusecitys.includes(8)">台中市2.0</option>
-              <option value="Taichung2E" v-if="canusecitys.includes(8)">台中市2.0E</option>
-              <option value="Chiayi2" v-if="canusecitys.includes(12)">嘉義市2.0</option>
-              <option value="Chiayi2E" v-if="canusecitys.includes(12)">嘉義市2.0E</option>
-              <option value="Chiayi_Country2" v-if="canusecitys.includes(13)">嘉義縣2.0</option>
-              <option value="Chiayi_Country2E" v-if="canusecitys.includes(13)">嘉義縣2.0E</option>
-              <option value="Tainan2" v-if="canusecitys.includes(14)">台南市2.0</option>
-              <option value="Tainan2E" v-if="canusecitys.includes(14)">台南市2.0E</option>
-              <option value="Kaohsiung2" v-if="canusecitys.includes(15)">高雄市2.0</option>
-              <option value="Kaohsiung2E" v-if="canusecitys.includes(15)">高雄市2.0E</option>
-              <option value="Pingtung2" v-if="canusecitys.includes(16)">屏東縣2.0</option>
-              <option value="Pingtung2E" v-if="canusecitys.includes(16)">屏東縣2.0E</option>
-              <option value="Taitung2" v-if="canusecitys.includes(19)">台東縣2.0</option>
-              <option value="Taitung2E" v-if="canusecitys.includes(19)">台東縣2.0E</option>
-            </template>
-          </select>
-        </div>
-      </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <button
-          type="button"
-          class="btn btn-success text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          @click="search">
+
+      <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
+        <button type="button" class="btn btn-success text-light" style="white-space: nowrap;" @click="search">
           搜尋
         </button>
         <output-excel
-          class="btn btn-primary text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          :data="exceldata"
-          :name="excelename"
-          :header="excelecolumn"/>
+          class="btn btn-primary text-light"
+          style="white-space: nowrap;"
+          :data="data"
+          :name="excelName"
+          :header="excelHeaders"
+        />
       </div>
     </form>
+
     <n-data-table
-      v-if="data.length > 0 && whatcheck == 1"
-      ref="dataTable"
-      :data="data"
-      :columns="column1"
-      :pagination="{ pageSize: 15 }"
-      :max-height="600"
-      :scroll-x="1000"
-      :bordered="false"
-      size="small"
-      :single-line="false"
-      striped
-    /><n-data-table
-      v-if="data.length > 0 && whatcheck == 2"
-      ref="dataTable"
+      v-show="data.length > 0"
+      ref="dataTableRef"
       size="small"
       :data="data"
-      :columns="column2"
-      :pagination="{ pageSize: 15 }"
+      :columns="currentColumns"
+      :pagination="{ pageSize: 25 }" 
       :max-height="600"
+      :scroll-x="1200"
       :bordered="false"
       :single-line="false"
-      :scroll-x="1000"
       striped
+      :row-class-name="rowClassName"
     />
   </div>
 </template>
 
 <script setup>
-import axios from "axios";
-import { ref, inject } from "vue";
+import { ref, inject, computed, onMounted } from "vue";
+import { NDataTable, NDatePicker, NSelect } from "naive-ui";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
-import { NDataTable, NDatePicker } from "naive-ui";
 import OutputExcel from "../../components/OutputExcel.vue";
 import { useUserStore } from "../../stores/userdata";
-const ischange = inject("ischange");
+import { getCityList } from "@/api/station";
+import { getGcpReport } from "@/api/report";
+
 const swal = inject("$swal");
-async function NotCityAlert(text) {
-  swal({
-    icon: "error",
-    title: `${text}`,
-    showConfirmButton: false,
-  });
-}
+const ischange = inject("ischange");
 const store = useUserStore();
-const canusecitys = store.citys;
+const canusecitys = store.citys || [];
+
+const NotCityAlert = (text) => swal({ icon: "error", title: text, showConfirmButton: false });
+
+// --- 狀態管理 ---
 const isLoading = ref(false);
-const dataTable = ref();
-const category = ref("請選擇");
-const whatcheck = ref(null);
+const dataTableRef = ref(null);
+const city = ref(null);
+const timestamp = ref(null);
 const data = ref([]);
-const timestamp = ref();
-const city = ref("請選擇");
-const column1 = [
-  {
-    key: "num1",
-    align: "center",
-    fixed: "left",
-    title: "欠費級距(元)",
-    width: 150,
-  },
-  {
-    key: "num2",
-    align: "center",
-    title: "真實筆數",
-  },
-  {
-    key: "num3",
-    align: "center",
-    title: "真實欠款",
-  },
-  {
-    key: "num4",
-    align: "center",
-    title: "特殊狀況筆數",
-  },
-  {
-    key: "num5",
-    align: "center",
-    title: "特殊狀況欠款",
-  },
-  {
-    key: "num6",
-    align: "center",
-    title: "市府應收款(10元)",
-  },
-  {
-    key: "num7",
-    align: "center",
-    title: "市府應收款(5元)",
-  },
-  {
-    key: "num8",
-    align: "center",
-    title: "合計市府應收款",
-  },
-  {
-    key: "num9",
-    align: "center",
-    title: "合計欠費",
-  },
-];
-const column2 = [
-  {
-    key: "num1",
-    align: "center",
-    fixed: "left",
-    title: "欠費級距(元)",
-    width: 150,
-  },
-  {
-    key: "num2",
-    align: "center",
-    title: "特殊筆數",
-  },
-  {
-    key: "num3",
-    align: "center",
-    title: "特殊欠款",
-  },
-  {
-    key: "num4",
-    align: "center",
-    title: "特殊狀況筆數",
-  },
-  {
-    key: "num5",
-    align: "center",
-    title: "特殊狀況欠款",
-  },
-  {
-    key: "num6",
-    align: "center",
-    title: "市府應收款(10元)",
-  },
-  {
-    key: "num7",
-    align: "center",
-    title: "市府應收款(5元)",
-  },
-  {
-    key: "num8",
-    align: "center",
-    title: "市府應收款(2元)",
-  },
-  {
-    key: "num9",
-    align: "center",
-    title: "合計市府應收款",
-  },
-  {
-    key: "num10",
-    align: "center",
-    title: "合計欠費",
-  },
-];
+const excelName = ref("欠費統計");
+const cityConfig = ref([]); 
 
-let exceldata = [];
-let excelename = "";
-let excelecolumn = [];
-const makeExecl = (nowdata, name) => {
-  exceldata = [];
-  excelename = "";
-  excelecolumn = [];
-
-  let col = [];
-  exceldata = [...nowdata];
-  excelename = name;
-  if (category.value == "1") {
-    col = [...column1];
-  } else if (category.value == "2.0+2.0e") {
-    col = [...column2];
+// --- 初始化載入縣市設定 ---
+const loadCities = async () => {
+  try {
+    const res = await getCityList();
+    const allCitiesFromDB = res.data.data || [];
+    cityConfig.value = allCitiesFromDB.filter(c => canusecitys.includes(c.id));
+  } catch (error) {
+    console.error("載入縣市清單失敗", error);
   }
-  col.forEach((item) => {
-    excelecolumn.push(item.title);
+};
+
+onMounted(() => {
+  loadCities();
+});
+
+// 🌟 修改：動態產生縣市下拉選單 (不再區分 2.0 / 2.0E)
+const cityOptions = computed(() => {
+  if (cityConfig.value.length === 0) return [];
+
+  const options = [];
+  cityConfig.value.forEach(cityData => {
+    if (!cityData.codes) return;
+
+    const codes = cityData.codes.split(',').map(c => c.trim());
+    const code2 = codes.find(c => c.endsWith("2"));
+    
+    // 只要有 2.0 的城市，就直接顯示乾淨的城市名稱 (例如：台北市)
+    if (code2) {
+      options.push({ label: cityData.name, value: code2 });
+    }
   });
-};
 
+  return options;
+});
+
+// --- 輔助函式 ---
 const disablePreviousDate = (ts) => {
-  const date = new Date(ts);
-  const previousYear = new Date(2012, 0, 1); // 取得 2012 年的第一天日期
-  const nextYear = new Date(new Date().getFullYear() + 1, 0, 0); // 取得明年的第一天日期
-
-  // 如果日期早於等於 2012 年的第一天，或晚於等於明年的第一天，則返回 true，即禁用日期
-  if (date <= previousYear || date >= nextYear) {
-    return true;
-  }
-
-  return false;
+  const selectedYear = new Date(ts).getFullYear();
+  const currentYear = new Date().getFullYear();
+  return selectedYear < 2013 || selectedYear > currentYear;
 };
 
+// 🌟 新增：表格斑馬紋邏輯 (單數白、雙數灰)
+const rowClassName = (row, index) => {
+  return index % 2 === 0 ? 'table-row-white' : 'table-row-gray';
+};
+
+// 🌟 修改：直接寫死 2.0 版本需要的欄位，刪除冗餘判斷
+const currentColumns = [
+  { key: "num1", align: "center", fixed: "left", title: "欠費級距(元)", width: 160 },
+  { key: "num2", align: "center", title: "特殊筆數" },
+  { key: "num3", align: "center", title: "特殊欠款" },
+  { key: "num4", align: "center", title: "特殊狀況筆數" },
+  { key: "num5", align: "center", title: "特殊狀況欠款" },
+  { key: "num6", align: "center", title: "市府應收款(10元)" },
+  { key: "num7", align: "center", title: "市府應收款(5元)" },
+  { key: "num8", align: "center", title: "市府應收款(2元)" },
+  { key: "num9", align: "center", title: "合計市府應收款" },
+  { key: "num10", align: "center", title: "合計欠費" },
+];
+
+const excelHeaders = computed(() => currentColumns.map(col => col.title));
+
+const amtRangeMap = [
+  "0", "5", "10", "15", "20", "25", "30", "35", "40", "45", "50",
+  "55-100", "105-200", "205-500", "505-1000", "1005-5000", "5005-9995",
+  "9999以上", "臺大專區(200元以下)", "臺大專區(201元以上)", "總計"
+];
+
+// --- 取得資料 ---
 const getData = async () => {
   try {
     isLoading.value = true;
-    data.value = [];
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/gcpfun`;
+    
+    // 🌟 修改：直接將 table_id 綁定為 arrearsall_report2
     const params = {
       dataset_id: "data_analysis",
       year: timestamp.value,
       city: city.value,
+      table_id: "arrearsall_report2" 
     };
-    if (category.value == 1) {
-      params.table_id = "arrearsall_report1";
-    } else if (category.value == "2.0+2.0e") {
-      params.table_id = "arrearsall_report2";
-    }
-    const res = await axios.get(url, { params });
-    isLoading.value = false;
 
-    if (!res.data.data) {
-      return;
-    }
-    res.data.data.forEach((element) => {
-      const dataitem = {};
-      if (category.value == "1") {
-        (dataitem.num1 = null), (dataitem.num2 = element.CNT_real);
-        dataitem.num3 = element.Total_real;
-        dataitem.num4 = element.CNT_special;
-        dataitem.num5 = element.Total_special;
-        dataitem.num6 = element.gov10;
-        dataitem.num7 = element.gov5;
-        dataitem.num8 = element.gov;
-        dataitem.num9 = element.total_arrearsall;
-      } else if (category.value == "2.0+2.0e") {
-        (dataitem.num1 = null), (dataitem.num2 = element.CNT_real);
-        dataitem.num3 = element.Total_real;
-        dataitem.num4 = element.CNT_special;
-        dataitem.num5 = element.Total_special;
-        dataitem.num6 = element.gov10;
-        dataitem.num7 = element.gov5;
-        dataitem.num8 = element.gov2;
-        dataitem.num9 = element.gov;
-        dataitem.num10 = element.total_arrearsall;
-      }
-      switch (element.amt_range) {
-        case 0:
-          dataitem.num1 = "0";
-          break;
+    const res = await getGcpReport(params);
+    const resData = res.data?.data || [];
 
-        case 1:
-          dataitem.num1 = "5";
-          break;
-
-        case 2:
-          dataitem.num1 = "10";
-          break;
-        case 3:
-          dataitem.num1 = "15";
-          break;
-        case 4:
-          dataitem.num1 = "20";
-          break;
-        case 5:
-          dataitem.num1 = "25";
-          break;
-        case 6:
-          dataitem.num1 = "30";
-          break;
-        case 7:
-          dataitem.num1 = "35";
-          break;
-        case 8:
-          dataitem.num1 = "40";
-          break;
-        case 9:
-          dataitem.num1 = "45";
-          break;
-        case 10:
-          dataitem.num1 = "50";
-          break;
-        case 11:
-          dataitem.num1 = "55-100";
-          break;
-        case 12:
-          dataitem.num1 = "105-200";
-          break;
-        case 13:
-          dataitem.num1 = "205-500";
-          break;
-        case 14:
-          dataitem.num1 = "505-1000";
-          break;
-        case 15:
-          dataitem.num1 = "1005-5000";
-          break;
-        case 16:
-          dataitem.num1 = "5005-9995";
-          break;
-        case 17:
-          dataitem.num1 = "9999以上";
-          break;
-        case 18:
-          dataitem.num1 = "臺大專區(200元以下)";
-          break;
-        case 19:
-          dataitem.num1 = "臺大專區(201元以上)";
-          break;
-        case 20:
-          dataitem.num1 = "總計";
-          break;
-        default:
-          break;
-      }
-      data.value.push(dataitem);
-      makeExecl(data.value, "欠費統計(金額區分)");
+    data.value = resData.map((el) => {
+      return {
+        num1: amtRangeMap[el.amt_range] || "未知級距",
+        num2: el.CNT_real ?? 0,
+        num3: el.Total_real ?? 0,
+        num4: el.CNT_special ?? 0,
+        num5: el.Total_special ?? 0,
+        num6: el.gov10 ?? 0,
+        num7: el.gov5 ?? 0,
+        num8: el.gov2 ?? 0,
+        num9: el.gov ?? 0,
+        num10: el.total_arrearsall ?? 0
+      };
     });
+
+    excelName.value = `欠費統計_${city.value}_${timestamp.value}`;
+    if (dataTableRef.value?.page) dataTableRef.value.page(1);
+
   } catch (error) {
-    console.log(error);
+    console.error(error);
+    NotCityAlert("查詢失敗，請稍後再試");
+  } finally {
+    isLoading.value = false;
   }
 };
-const search = () => {
-  if (!timestamp.value) {
-    NotCityAlert("請選擇日期");
-    return;
-  } else if (category.value == "請選擇") {
-    NotCityAlert("系統不能為空");
-    return;
-  } else if (city.value == "請選擇") {
-    NotCityAlert("城市不能為空");
-    return;
-  }
 
-  if (category.value == "1") {
-    whatcheck.value = 1;
-  } else if (category.value == "2.0+2.0e") {
-    whatcheck.value = 2;
-  }
+const search = () => {
+  if (!timestamp.value) return NotCityAlert("請選擇年份");
+  if (!city.value) return NotCityAlert("請選擇城市");
   getData();
 };
 </script>
 
-<style></style>
+<style scoped>
+/* 🌟 強制覆蓋單雙數行的背景色，包含固定在左側的欄位 */
+:deep(.table-row-white) > td {
+  background-color: #ffffff !important;
+}
+
+:deep(.table-row-gray) > td {
+  background-color: #e8e8e8 !important; /* 舒服的淺灰色 */
+}
+
+/* 🌟 滑鼠游標經過時的高亮顏色 */
+:deep(.n-data-table-tr:hover) > td {
+  background-color: #e6f7ff !important; /* 淺藍色 */
+}
+</style>

@@ -6,57 +6,58 @@
       :is-full-page="true"
     />
     <div class="row mx-0">
-      <h1 class="report-h1 fw-bold">TPASS補助款月報</h1>
+      <h1 class="report-h1 fw-bold">TPASS 補助款月報</h1>
     </div>
 
+    <!-- 🚀 鐵壁防禦排版：強制單行、橫向捲軸 -->
     <form
-      class="row mx-0"
+      class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
+      style="display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; overflow-x: auto;"
     >
-      <div
-        class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
-      >
-        <div
-          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
-        >
-          <n-date-picker
-            class="px-0"
-            v-model:formatted-value="timestamp"
-            type="month"
-            :actions="null"
-            :input-readonly="true"
-            :update-value-on-close="true"
-            placeholder="請選擇日期"
-            value-format="yyyy-MM"
-            :is-date-disabled="disablePreviousDate"
-          />
-        </div>
+      <!-- 日期選擇 -->
+      <div style="width: 160px; flex-shrink: 0;">
+        <n-date-picker
+          v-model:formatted-value="timestamp"
+          type="month"
+          :actions="null"
+          :input-readonly="true"
+          :update-value-on-close="true"
+          placeholder="請選擇月份"
+          value-format="yyyy-MM"
+          :is-date-disabled="disablePreviousDate"
+        />
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
+
+      <!-- 按鈕群組 -->
+      <div style="display: flex; gap: 8px; flex-shrink: 0;">
         <button
           type="button"
-          class="btn btn-success text-light mt-3 mt-md-0 col-md-auto mx-md-2"
+          class="btn btn-success text-light"
+          style="white-space: nowrap;"
           @click="search"
         >
           搜尋
         </button>
         <output-excel
-          class="btn btn-primary text-light mt-3 mt-md-0 col-md-auto mx-md-2"
+          class="btn btn-primary text-light"
+          style="white-space: nowrap;"
           :data="exceldata"
           :name="excelename"
           :header="excelecolumn"
         />
       </div>
     </form>
+
     <n-data-table
-      v-show="data.length > 1"
+      v-show="data.length > 0"
       size="small"
       :data="data"
       ref="dataTable"
       :columns="columns"
       :pagination="{ pageSize: 17 }"
       :max-height="600"
-      :scroll-x="500"
+      :scroll-x="1000"
       :bordered="false"
       :single-line="false"
       striped
@@ -65,135 +66,100 @@
 </template>
 
 <script setup>
-import axios from "axios";
 import { ref, inject } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { NDataTable, NDatePicker } from "naive-ui";
 import OutputExcel from "../../components/OutputExcel.vue";
+// 🚀 引入共用 API
+import { getGcpReport } from "@/api/report";
+
 const swal = inject("$swal");
-async function NotCityAlert(text) {
-  swal({
-    icon: "error",
-    title: `${text}`,
-    showConfirmButton: false,
-  });
-}
 const ischange = inject("ischange");
 
-const timestamp = ref();
+async function NotCityAlert(text) {
+  swal({ icon: "error", title: text, showConfirmButton: false });
+}
+
+const timestamp = ref(null);
 const isLoading = ref(false);
 const data = ref([]);
 const dataTable = ref(null);
+
+// 🚀 響應式 Excel 變數
+const exceldata = ref([]);
+const excelename = ref("");
+const excelecolumn = ref([]);
+
+// --- 表頭定義 ---
 const columns = [
-  {
-    key: "num1",
-    align: "center",
-    fixed: "left",
-    title: "專案別",
-  },
-  {
-    key: "num2",
-    align: "center",
-    title: "系統別",
-  },
-  {
-    key: "num3",
-    align: "center",
-    title: "補助款項目",
-  },
-  {
-    key: "num4",
-    align: "center",
-    title: "票卡",
-  },
-  {
-    key: "num5",
-    align: "center",
-    title: "筆數",
-  },
-  {
-    key: "num6",
-    align: "center",
-    title: "補助金額",
-  },
-  {
-    key: "num7",
-    align: "center",
-    fixed: "left",
-    title: "單筆補助金額",
-  },
+  { key: "num1", align: "center", fixed: "left", title: "專案別", width: 120 },
+  { key: "num2", align: "center", title: "系統別", width: 100 },
+  { key: "num3", align: "center", title: "補助款項目", width: 180 },
+  { key: "num4", align: "center", title: "票卡", width: 100 },
+  { key: "num5", align: "center", title: "筆數", width: 80 },
+  { key: "num6", align: "center", title: "補助金額", width: 100 },
+  { key: "num7", align: "center", title: "單筆補助金額", width: 120 },
 ];
 
-let exceldata = [];
-let excelename = "";
-let excelecolumn = [];
-
-const makeExecl = (nowdata, nowcolumn, name) => {
-  exceldata = [];
-  excelename = "";
-  excelecolumn = [];
-  exceldata = [...nowdata];
-  excelename = name;
-  nowcolumn.forEach((item) => {
-    excelecolumn.push(item.title);
-  });
-};
+// --- 日期防呆 (限制 2023 年至今，且不能選未來月份) ---
 const disablePreviousDate = (ts) => {
-  const date = new Date(ts);
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const now = new Date(); // 获取当前时间
-  const nowyear = now.getFullYear();
-  const nowmonth = now.getMonth() + 1;
-
-  if ((year === nowyear && month > nowmonth) || year > nowyear || year < 2023) {
-    return true;
-  }
-
-  return false;
+  const d = new Date(ts);
+  const now = new Date();
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const minDate = new Date(2023, 0, 1); // 2023-01
+  return d >= currentMonthStart || d < minDate;
 };
 
+// --- 準備 Excel 資料 ---
+const prepareExcel = (reportData) => {
+  exceldata.value = [...reportData];
+  excelename.value = `${timestamp.value} TPASS補助款月報`;
+  excelecolumn.value = columns.map(c => c.title);
+};
+
+// --- 🚀 核心 API 請求 ---
 const getData = async () => {
   try {
-    data.value = [];
     isLoading.value = true;
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/gcpfun`;
     const params = {
       dataset_id: "financial_report",
       table_id: "monthly_pass",
       date: `${timestamp.value}-01`,
     };
-    const res = await axios.get(url, { params });
-    const arr = [...res.data.data];
-    arr.sort((a, b) => a.rank - b.rank);
-    let arrdata = [];
-    arr.forEach((item) => {
-      arrdata.push({
-        num1: item.project,
-        num2: item.sys,
-        num3: item.item,
-        num4: item.card,
-        num5: item.CNT,
-        num6: item.amount,
-        num7: item.subsidy,
-      });
-    });
-    data.value = [...arrdata];
-    makeExecl(data.value, columns, `${timestamp.value}TPASS補助款月報`);
-    dataTable.value.page(1);
-    isLoading.value = false;
+
+    const res = await getGcpReport(params);
+    const rawData = res.data?.data || [];
+
+    // 🚀 資料轉換：排序 + Mapping
+    data.value = [...rawData]
+      .sort((a, b) => (a.rank || 0) - (b.rank || 0))
+      .map(item => ({
+        num1: item.project ?? "",
+        num2: item.sys ?? "",
+        num3: item.item ?? "",
+        num4: item.card ?? "",
+        num5: item.CNT ?? 0,
+        num6: item.amount ?? 0,
+        num7: item.subsidy ?? 0,
+      }));
+
+    // 同步更新 Excel 組件資料
+    prepareExcel(data.value);
+    
+    if (dataTable.value?.page) {
+      dataTable.value.page(1);
+    }
   } catch (error) {
-    console.log(error);
+    console.error("API Error:", error);
+    NotCityAlert("查詢失敗，請稍後再試");
+  } finally {
+    isLoading.value = false;
   }
 };
 
 const search = () => {
-  if (!timestamp.value) {
-    return NotCityAlert("請選擇日期");
-  }
+  if (!timestamp.value) return NotCityAlert("請選擇日期");
   getData();
 };
 </script>
-
-<style></style>

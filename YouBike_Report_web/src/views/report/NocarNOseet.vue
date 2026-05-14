@@ -9,873 +9,244 @@
       <h1 class="report-h1 fw-bold">無車無位統計</h1>
     </div>
 
+    <!-- 🚀 鐵壁防禦排版：強制單行、不換行、橫向捲軸 -->
     <form
-      class="row mx-0"
+      class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
+      style="display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; overflow-x: auto;"
     >
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <label class="col-md-auto col-form-label px-0 px-md-2 fw-bolder"
-          >類別:</label
-        >
-        <div class="col-md-auto px-0">
-          <select
-            class="form-select form-select-sm"
-            aria-label="car"
-            v-model="itemcategory"
-            @change="cleardateall"
-          >
-            <option selected disabled>請選擇</option>
-            <option value="day_empty_full">日報</option>
-            <option value="weekly_empty_full">週報</option>
-            <option value="monthly_empty_full">月報</option>
-          </select>
+      <!-- 類別 -->
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+        <label class="fw-bolder mb-0" style="white-space: nowrap;">類別:</label>
+        <div style="width: 100px;">
+          <n-select v-model:value="itemcategory" :options="categoryOptions" @update:value="cleardateall" placeholder="請選擇" />
         </div>
-      </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <label class="col-md-auto col-form-label px-0 px-md-2 fw-bolder"
-          >系統別:</label
-        >
-        <div class="col-md-auto px-0">
-          <select
-            class="form-select form-select-sm"
-            aria-label="car"
-            v-model="category"
-            @change="changecity"
-          >
-            <option selected disabled>請選擇</option>
-            <option value="1.0">1.0</option>
-            <option value="2.0">2.0+2.0E</option>
-          </select>
-        </div>
-      </div>
-      <div class="row align-items-center col-md-auto col-12 pe-0">
-        <label class="col-md-auto col-form-label fw-bolder pe-0">城市:</label>
       </div>
 
-      <div class="row mx-0 mx-md-2 align-items-center col-md-2 col-12">
-        <n-select
-          class="px-0"
-          v-model:value="city"
-          placeholder="請選擇"
-          multiple
-          :options="cityoptions"
-          :max-tag-count="1"
-          size="medium"
-        />
+      <!-- 系統別 -->
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+        <label class="fw-bolder mb-0" style="white-space: nowrap;">系統別:</label>
+        <div style="width: 120px;">
+          <n-select v-model:value="sysCategory" :options="sysOptions" @update:value="city = []" placeholder="請選擇" />
+        </div>
       </div>
-      <div class="row col-md-auto col-12 ps-md-0 pe-md-3 mx-auto mx-md-0">
-        <button
-          type="button"
-          class="btn btn-success text-light mt-3 mt-md-0"
-          @click="searchcityall"
-        >
-          城市全選
+
+      <!-- 城市與全選 -->
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+        <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
+        <div style="width: 160px;">
+          <n-select v-model:value="city" multiple :options="cityOptions" :max-tag-count="1" placeholder="請選擇" />
+        </div>
+        <button type="button" class="btn btn-sm btn-success text-light" style="white-space: nowrap;" @click="searchcityall">
+          全選
         </button>
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <label class="col-md-auto col-form-label px-0 px-md-2 fw-bolder"
-          >項目:</label
-        >
-        <div class="col-md-auto px-0">
-          <select
-            class="form-select form-select-sm"
-            aria-label="car"
-            v-model="item"
-          >
-            <option selected disabled>請選擇</option>
-            <option value="無車5分鐘">無車5分鐘</option>
-            <option value="無車10分鐘">無車10分鐘</option>
-            <option value="無車20分鐘">無車20分鐘</option>
-            <option value="無車30分鐘">無車30分鐘</option>
-            <option value="無位5分鐘">無位5分鐘</option>
-            <option value="無位10分鐘">無位10分鐘</option>
-            <option value="無位20分鐘">無位20分鐘</option>
-            <option value="無位30分鐘">無位30分鐘</option>
-          </select>
+
+      <!-- 項目 -->
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+        <label class="fw-bolder mb-0" style="white-space: nowrap;">項目:</label>
+        <div style="width: 140px;">
+          <n-select v-model:value="item" :options="itemOptions" placeholder="請選擇" />
         </div>
       </div>
-      <div class="row align-items-center col-md-auto col-12 pe-0">
-        <label class="col-md-auto col-form-label fw-bolder pe-0">狀態:</label>
-      </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-2 col-12">
-        <n-select
-          class="px-0"
-          v-model:value="status"
-          placeholder="請選擇"
-          multiple
-          :options="statusoptions"
-          :max-tag-count="1"
-          size="medium"
-        />
+
+      <!-- 狀態 -->
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+        <label class="fw-bolder mb-0" style="white-space: nowrap;">狀態:</label>
+        <div style="width: 100px;">
+          <n-select v-model:value="status" multiple :options="statusOptions" :max-tag-count="1" placeholder="請選擇" />
+        </div>
       </div>
 
-      <template v-if="itemcategory === 'day_empty_full'">
-        <div
-          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
-        >
-          <n-date-picker
-            class="px-0"
-            v-model:formatted-value="starttimestamp"
-            type="date"
-            :actions="null"
-            :input-readonly="true"
-            :update-value-on-close="true"
-            placeholder="開始日期"
-            value-format="yyyy-MM-dd"
-            clearable
-            :is-date-disabled="disablestartDate1"
-          />
-        </div>
-        <div
-          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
-        >
-          <n-date-picker
-            class="px-0"
-            v-model:formatted-value="endtimestamp"
-            type="date"
-            :actions="null"
-            :input-readonly="true"
-            :is-date-disabled="disableEndDate1"
-            :update-value-on-close="true"
-            placeholder="結束日期"
-            value-format="yyyy-MM-dd"
-            clearable
-          />
-        </div>
-        <button
-          type="button"
-          class="btn btn-info text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          @click="cleardate"
-        >
-          清空日期
-        </button>
-      </template>
-
-      <template v-else-if="itemcategory === 'weekly_empty_full'">
-        <div
-          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
-        >
-          <n-date-picker
-            class="px-0"
-            v-model:formatted-value="starttimestamp2"
-            type="date"
-            :actions="null"
-            :input-readonly="true"
-            :update-value-on-close="true"
-            placeholder="開始日期"
-            value-format="yyyy-MM-dd"
-            :is-date-disabled="disablestartDate2"
-            clearable
-          />
-        </div>
-
-        <div
-          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
-        >
-          <n-date-picker
-            class="px-0"
-            v-model:formatted-value="endtimestamp2"
-            type="date"
-            :actions="null"
-            :input-readonly="true"
-            :is-date-disabled="disableEndDate2"
-            :update-value-on-close="true"
-            placeholder="結束日期"
-            value-format="yyyy-MM-dd"
-          />
-        </div>
-        <button
-          type="button"
-          class="btn btn-info text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          @click="cleardate2"
-        >
-          清空日期
-        </button>
-      </template>
-      <template v-else-if="itemcategory === 'monthly_empty_full'">
-        <div class="row mx-0 mx-md-2 align-items-center col-md-auto">
-          <n-date-picker
-            class="px-0"
-            :input-readonly="true"
-            v-model:formatted-value="starttimestamp3"
-            type="month"
-            :actions="null"
-            update-value-on-close
-            placeholder="開始月份"
-            :is-date-disabled="disablestartDate3"
-            value-format="yyyy-MM"
-            :on-update:formatted-value="monthcontrl1"
-          />
-        </div>
-        <div
-          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
-        >
-          <div class="row mx-0 mx-md-2 align-items-center col-md-auto">
-            <n-date-picker
-              class="px-0"
-              :input-readonly="true"
-              v-model:formatted-value="endtimestamp3"
-              type="month"
-              :actions="null"
-              update-value-on-close
-              placeholder="結束月份"
-              :is-date-disabled="disableEndDate3"
-              value-format="yyyy-MM"
-              :on-update:formatted-value="monthcontrl2"
-            />
+      <!-- 🚀 日期區間 (依類別動態切換) -->
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; border-left: 2px solid #ccc; padding-left: 12px;">
+        <!-- 日報 -->
+        <template v-if="itemcategory === 'day_empty_full'">
+          <div style="width: 140px;">
+            <n-date-picker v-model:formatted-value="dateState.start1" type="date" value-format="yyyy-MM-dd" placeholder="開始日期" :is-date-disabled="disableDailyStart" clearable />
           </div>
-        </div>
-        <button
-          type="button"
-          class="btn btn-info text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          @click="cleardate3"
-        >
-          清空月份
-        </button>
-      </template>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <button
-          type="button"
-          class="btn btn-primary text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          @click="search"
-        >
+          <span class="fw-bold">至</span>
+          <div style="width: 140px;">
+            <n-date-picker v-model:formatted-value="dateState.end1" type="date" value-format="yyyy-MM-dd" placeholder="結束日期" :is-date-disabled="disableDailyEnd" clearable />
+          </div>
+        </template>
+
+        <!-- 週報 -->
+        <template v-else-if="itemcategory === 'weekly_empty_full'">
+          <div style="width: 140px;">
+            <n-date-picker v-model:formatted-value="dateState.start2" type="date" value-format="yyyy-MM-dd" placeholder="週一開始" :is-date-disabled="disableWeeklyStart" clearable />
+          </div>
+          <span class="fw-bold">至</span>
+          <div style="width: 140px;">
+            <n-date-picker v-model:formatted-value="dateState.end2" type="date" value-format="yyyy-MM-dd" placeholder="週一結束" :is-date-disabled="disableWeeklyEnd" clearable />
+          </div>
+        </template>
+
+        <!-- 月報 -->
+        <template v-else-if="itemcategory === 'monthly_empty_full'">
+          <div style="width: 140px;">
+            <n-date-picker v-model:formatted-value="dateState.start3" type="month" value-format="yyyy-MM" placeholder="開始月份" :is-date-disabled="disableMonthlyStart" clearable />
+          </div>
+          <span class="fw-bold">至</span>
+          <div style="width: 140px;">
+            <n-date-picker v-model:formatted-value="dateState.end3" type="month" value-format="yyyy-MM" placeholder="結束月份" :is-date-disabled="disableMonthlyEnd" clearable />
+          </div>
+        </template>
+        
+        <button v-if="itemcategory" type="button" class="btn btn-sm btn-info text-light" style="white-space: nowrap;" @click="cleardateall">清空</button>
+      </div>
+
+      <!-- 搜尋匯出 -->
+      <div style="display: flex; flex-shrink: 0; margin-left: auto;">
+        <button type="button" class="btn btn-primary text-light" style="white-space: nowrap;" @click="search">
           搜尋匯出
         </button>
       </div>
     </form>
-    <n-result class="mt-5" status="info" title="此頁面只供下載EXCEL">
-    </n-result>
+
+    <n-result class="mt-5" status="info" title="此頁面只供下載 EXCEL，無網頁資料表預覽"></n-result>
   </div>
 </template>
 
 <script setup>
-import axios from "axios";
-import { ref, inject } from "vue";
-import * as XLSX from "xlsx";
+import { ref, inject, computed, reactive } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { NDatePicker, NSelect, NResult } from "naive-ui";
 import { useUserStore } from "../../stores/userdata";
-const swal = inject("$swal");
-async function errorAlert(text) {
-  swal({
-    icon: "error",
-    title: `${text}`,
-    showConfirmButton: false,
-  });
-}
-const ischange = inject("ischange");
-const isLoading = ref(false);
-const data = ref([]);
-const category = ref("請選擇");
-const itemcategory = ref("請選擇");
-const item = ref("請選擇");
-const columns = ref([
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "date",
-    width: 100,
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "責任區",
-    width: 60,
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "場站代號",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "站名",
-    width: 250,
-  },
-  {
-    key: "item5",
-    align: "center",
-    title: "狀態",
-    width: 60,
-  },
-  {
-    key: "item6",
-    align: "center",
-    title: "項目",
-    width: 70,
-  },
-  {
-    key: "item7",
-    align: "center",
-    title: "0",
-  },
-  {
-    key: "item8",
-    align: "center",
-    title: "1",
-  },
-  {
-    key: "item9",
-    align: "center",
-    title: "2",
-  },
-  {
-    key: "item10",
-    align: "center",
-    title: "3",
-  },
-  {
-    key: "item11",
-    align: "center",
-    title: "4",
-  },
-  {
-    key: "item12",
-    align: "center",
-    title: "5",
-  },
-  {
-    key: "item13",
-    align: "center",
-    title: "6",
-  },
-  {
-    key: "item14",
-    align: "center",
-    title: "7",
-  },
-  {
-    key: "item15",
-    align: "center",
-    title: "8",
-  },
-  {
-    key: "item16",
-    align: "center",
-    title: "9",
-  },
-  {
-    key: "item17",
-    align: "center",
-    title: "10",
-  },
-  {
-    key: "item18",
-    align: "center",
-    title: "11",
-  },
-  {
-    key: "item19",
-    align: "center",
-    title: "12",
-  },
-  {
-    key: "item20",
-    align: "center",
-    title: "13",
-  },
-  {
-    key: "item21",
-    align: "center",
-    title: "14",
-  },
-  {
-    key: "item22",
-    align: "center",
-    title: "15",
-  },
-  {
-    key: "item23",
-    align: "center",
-    title: "16",
-  },
-  {
-    key: "item24",
-    align: "center",
-    title: "17",
-  },
-  {
-    key: "item25",
-    align: "center",
-    title: "18",
-  },
-  {
-    key: "item26",
-    align: "center",
-    title: "19",
-  },
-  {
-    key: "item27",
-    align: "center",
-    title: "20",
-  },
-  {
-    key: "item28",
-    align: "center",
-    title: "21",
-  },
-  {
-    key: "item29",
-    align: "center",
-    title: "22",
-  },
-  {
-    key: "item30",
-    align: "center",
-    title: "23",
-  },
-  {
-    key: "item31",
-    align: "center",
-    title: "總計",
-    width: 50,
-  },
-]);
+import * as XLSX from "xlsx";
+// 🚀 引入共用 API
+import { getGcpReport } from "@/api/report";
 
-let exceldata = [];
-let excelename = "";
-let excelecolumn = [];
-const makeExecl = (nowdata, nowcolumn, name) => {
-  exceldata = [];
-  excelecolumn = [];
-  excelename = "";
-
-  exceldata = [...nowdata];
-  excelename = name;
-  nowcolumn.forEach((item) => {
-    excelecolumn.push(item.title);
-  });
-
-  //匯出excel code    let data = [...props.data];
-  if (!exceldata.length) {
-    return errorAlert("空資料不能匯出");
-  } else {
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(exceldata);
-    XLSX.utils.book_append_sheet(workbook, worksheet, "sheet1");
-    XLSX.utils.sheet_add_aoa(worksheet, [excelecolumn], { origin: "A1" });
-    XLSX.writeFile(workbook, `${excelename}.xlsx`);
-  }
-};
-
-const city = ref([]);
 const store = useUserStore();
-const canusecitys = store.citys;
-const cityoptions = ref([]);
+const canusecitys = store.citys || [];
+const ischange = inject("ischange");
+const swal = inject("$swal");
 
-const changecity = () => {
-  city.value = [];
-  if (category.value === "1.0") {
-    cityoptions.value = [
-      {
-        label: "新北市",
-        value: "新北市",
-        disabled: !canusecitys.includes(3),
-      },
-      {
-        label: "桃園市",
-        value: "桃園市",
-        disabled: !canusecitys.includes(4),
-      },
-      {
-        label: "苗栗縣",
-        value: "苗栗縣",
-        disabled: !canusecitys.includes(7),
-      },
-    ];
-  } else if (category.value === "2.0") {
-    cityoptions.value = [
-      {
-        label: "台北市",
-        value: "台北市",
-        disabled: !canusecitys.includes(2),
-      },
-      {
-        label: "新北市",
-        value: "新北市",
-        disabled: !canusecitys.includes(3),
-      },
-      {
-        label: "桃園市",
-        value: "桃園市",
-        disabled: !canusecitys.includes(4),
-      },
-      {
-        label: "新竹市",
-        value: "新竹市",
-        disabled: !canusecitys.includes(5),
-      },
-      {
-        label: "新竹縣",
-        value: "新竹縣",
-        disabled: !canusecitys.includes(6),
-      },
-      {
-        label: "竹科",
-        value: "竹科",
-        disabled: !canusecitys.includes(20),
-      },
-      {
-        label: "苗栗縣",
-        value: "苗栗縣",
-        disabled: !canusecitys.includes(7),
-      },
-      {
-        label: "台中市",
-        value: "台中市",
-        disabled: !canusecitys.includes(8),
-      },
-      {
-        label: "嘉義市",
-        value: "嘉義市",
-        disabled: !canusecitys.includes(12),
-      },
-      {
-        label: "嘉義縣",
-        value: "嘉義縣",
-        disabled: !canusecitys.includes(13),
-      },
-      {
-        label: "台南市",
-        value: "台南市",
-        disabled: !canusecitys.includes(14),
-      },
-      {
-        label: "高雄市",
-        value: "高雄市",
-        disabled: !canusecitys.includes(15),
-      },
-      {
-        label: "屏東縣",
-        value: "屏東縣",
-        disabled: !canusecitys.includes(16),
-      },
-      {
-        label: "台東縣",
-        value: "台東縣",
-        disabled: !canusecitys.includes(19),
-      },
-    ];
-  }
-};
+async function errorAlert(text) {
+  swal({ icon: "error", title: text, showConfirmButton: false });
+}
 
-const searchcityall = () => {
-  let arr = [];
-  cityoptions.value.forEach((item) => {
-    if (!item.disabled) {
-      arr.push(item.value);
-    }
-  });
-  city.value = arr;
-};
+const isLoading = ref(false);
+
+// --- 🚀 選單選項 (資料驅動) ---
+const categoryOptions = [
+  { label: "日報", value: "day_empty_full" },
+  { label: "週報", value: "weekly_empty_full" },
+  { label: "月報", value: "monthly_empty_full" }
+];
+const sysOptions = [
+  { label: "1.0", value: "1.0" },
+  { label: "2.0+2.0E", value: "2.0" }
+];
+const itemOptions = ["無車5分鐘", "無車10分鐘", "無車20分鐘", "無車30分鐘", "無位5分鐘", "無位10分鐘", "無位20分鐘", "無位30分鐘"].map(v => ({ label: v, value: v }));
+const statusOptions = [{ label: "分鐘", value: "分鐘" }, { label: "次數", value: "次數" }];
+
+const itemcategory = ref(null);
+const sysCategory = ref(null);
+const city = ref([]);
+const item = ref(null);
+const status = ref([]);
+
+// 🚀 城市選單 (依據系統別連動 Computed)
+const cityOptions = computed(() => {
+  if (!sysCategory.value) return [];
+  const map = sysCategory.value === "1.0" 
+    ? [ { label: "新北市", value: "新北市", auth: 3 }, { label: "桃園市", value: "桃園市", auth: 4 }, { label: "苗栗縣", value: "苗栗縣", auth: 7 } ]
+    : [
+        { label: "台北市", value: "台北市", auth: 2 }, { label: "新北市", value: "新北市", auth: 3 },
+        { label: "桃園市", value: "桃園市", auth: 4 }, { label: "新竹市", value: "新竹市", auth: 5 },
+        { label: "新竹縣", value: "新竹縣", auth: 6 }, { label: "竹科", value: "竹科", auth: 20 },
+        { label: "苗栗縣", value: "苗栗縣", auth: 7 }, { label: "台中市", value: "台中市", auth: 8 },
+        { label: "嘉義市", value: "嘉義市", auth: 12 }, { label: "嘉義縣", value: "嘉義縣", auth: 13 },
+        { label: "台南市", value: "台南市", auth: 14 }, { label: "高雄市", value: "高雄市", auth: 15 },
+        { label: "屏東縣", value: "屏東縣", auth: 16 }, { label: "台東縣", value: "台東縣", auth: 19 }
+      ];
+  return map.filter(c => canusecitys.includes(c.auth));
+});
+
+const searchcityall = () => { city.value = cityOptions.value.map(c => c.value); };
+
+// --- 🚀 日期狀態集中管理 ---
+const dateState = reactive({
+  start1: null, end1: null, // 日報
+  start2: null, end2: null, // 週報
+  start3: null, end3: null  // 月報
+});
 
 const cleardateall = () => {
-  cleardate();
-  cleardate2();
-  cleardate3();
+  Object.keys(dateState).forEach(k => dateState[k] = null);
 };
 
-const starttimestamp = ref();
-const endtimestamp = ref();
-const cleardate = () => {
-  starttimestamp.value = null;
-  endtimestamp.value = null;
+// --- 🚀 時間防呆邏輯極簡化 (縮短了 150 行) ---
+const MIN_DATE = new Date(2023, 0, 1).getTime(); // 2023-01-01
+const getTodayStart = () => new Date().setHours(0, 0, 0, 0);
+
+// 1. 日報 (限制 30 天，不可選未來)
+const disableDailyStart = (ts) => ts < MIN_DATE || ts >= getTodayStart() || (dateState.end1 && (ts > new Date(dateState.end1).getTime() || ts < new Date(dateState.end1).getTime() - 30 * 86400000));
+const disableDailyEnd = (ts) => ts < MIN_DATE || ts >= getTodayStart() || (dateState.start1 && (ts < new Date(dateState.start1).getTime() || ts > new Date(dateState.start1).getTime() + 30 * 86400000));
+
+// 2. 週報 (限制只能選禮拜一，限制 4 週 / 27 天差)
+const disableWeeklyStart = (ts) => {
+  const d = new Date(ts);
+  if (d.getDay() !== 1 || ts < MIN_DATE || ts >= getTodayStart()) return true;
+  return dateState.end2 && (ts > new Date(dateState.end2).getTime() || ts < new Date(dateState.end2).getTime() - 27 * 86400000);
 };
-const disablestartDate1 = (ts) => {
-  const endDateValue = endtimestamp.value;
-  const currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0); // 设置当前日期的时间为午夜
-
-  if (endDateValue) {
-    const endDate = new Date(endDateValue);
-    endDate.setHours(0, 0, 0, 0); // 设置结束日期的时间为午夜
-
-    const startDate = new Date(endDate);
-    startDate.setDate(startDate.getDate() - 30);
-
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (
-      selectedDate < startDate ||
-      selectedDate > endDate ||
-      selectedDate >= currentDate
-    ) {
-      // 如果选中日期在结束日期之前、结束日期后的31天之外，或是今天及未来的日期，禁用选中日期
-      return true;
-    }
-  } else {
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (selectedDate >= currentDate) {
-      // 如果选中日期是今天及未来的日期，禁用选中日期
-      return true;
-    }
-  }
-};
-const disableEndDate1 = (ts) => {
-  const startDateValue = starttimestamp.value;
-  const currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0); // 设置当前日期的时间为午夜
-
-  if (startDateValue) {
-    const startDate = new Date(startDateValue);
-    startDate.setHours(0, 0, 0, 0); // 设置起始日期的时间为午夜
-
-    if (startDate > currentDate) {
-      // 如果起始日期大于当前日期，禁用所有日期
-      return true;
-    }
-
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 30);
-
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (
-      selectedDate < startDate ||
-      selectedDate > endDate ||
-      selectedDate >= currentDate
-    ) {
-      // 如果选中日期在起始日期之前、起始日期后的31天之外，或是今天及未来的日期，禁用选中日期
-      return true;
-    }
-  } else {
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (selectedDate >= currentDate) {
-      // 如果选中日期是今天及未来的日期，禁用选中日期
-      return true;
-    }
-  }
+const disableWeeklyEnd = (ts) => {
+  const d = new Date(ts);
+  if (d.getDay() !== 1 || ts < MIN_DATE || ts >= getTodayStart()) return true;
+  return dateState.start2 && (ts < new Date(dateState.start2).getTime() || ts > new Date(dateState.start2).getTime() + 27 * 86400000);
 };
 
-const starttimestamp2 = ref(null);
-const endtimestamp2 = ref(null);
-const cleardate2 = () => {
-  endtimestamp2.value = null;
-  starttimestamp2.value = null;
-};
-const disablestartDate2 = (ts) => {
-  const date = new Date(ts);
-  const now = new Date(); // 取得当前时间
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // 将时间重设为今天的凌晨，以去掉时、分、秒和毫秒
-  const startOfWeek = new Date(today); // 复制今天的日期
-  startOfWeek.setDate(today.getDate() - (today.getDay() || 7) + 1); // 设置禮拜一的日期
-  const dayOfWeek = date.getDay(); // 取得星期几，星期日为0，星期一为1，以此类推
-
-  // 禁用禮拜一之后的日期
-  if (date >= startOfWeek) {
-    return true;
-  }
-
-  // 禁用非禮拜一的日期
-  if (dayOfWeek !== 1) {
-    return true;
-  }
-
-  const year = date.getFullYear();
-
-  // 禁用2023年以前的日期
-  if (year < 2023) {
-    return true;
-  }
-
-  // 获取 endtimestamp2.value 前的 28 天日期
-  const endDate = new Date(endtimestamp2.value);
-  const startDate = new Date(endDate);
-  startDate.setDate(endDate.getDate() - 27);
-
-  // 禁用超过 endtimestamp2.value 前 28 天的日期
-  if (date < startDate) {
-    return true;
-  }
-  // 禁用超过 endtimestamp2.value 的日期
-  if (endtimestamp2.value && date >= endDate) {
-    return true;
-  }
-
-  return false;
-};
-
-const disableEndDate2 = (ts) => {
-  const date = new Date(ts);
-  date.setHours(0, 0, 0, 0);
-  const now = new Date(); // 取得当前时间
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // 将时间重设为今天的凌晨，以去掉时、分、秒和毫秒
-  const startOfWeek = new Date(today); // 复制今天的日期
-  startOfWeek.setDate(today.getDate() - (today.getDay() || 7) + 1); // 设置礼拜一的日期
-  const dayOfWeek = date.getDay(); // 取得星期几，星期日为 0，星期一为 1，以此类推
-  // if(!starttimestamp2.value){
-  //     return true
-  // }
-  // 禁用礼拜一之后的日期
-  if (date >= startOfWeek) {
-    return true;
-  }
-
-  // 禁用非礼拜一的日期
-  if (dayOfWeek !== 1) {
-    return true;
-  }
-
-  const year = date.getFullYear();
-
-  // 禁用 2023 年以前的日期
-  if (year < 2023) {
-    return true;
-  }
-
-  // 获取 starttimestamp2.value 后的 27 天日期
-  const startDate = new Date(starttimestamp2.value);
-  startDate.setHours(0, 0, 0, 0); // 设置小时、分钟、秒和毫秒为零
-  const endDate = new Date(startDate);
-  endDate.setDate(startDate.getDate() + 27);
-  // 禁用超过 28 天后的日期
-  if (starttimestamp2.value && date > endDate) {
-    return true;
-  }
-  if (date.getTime() < startDate.getTime()) {
-    return true;
-  }
-
-  return false;
-};
-
-const starttimestamp3 = ref();
-const endtimestamp3 = ref();
-const cleardate3 = () => {
-  endtimestamp3.value = null;
-  starttimestamp3.value = null;
-};
-
-const disablestartDate3 = (ts) => {
-  const date = new Date(ts);
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const now = new Date(); // 获取当前时间
-  const nowyear = now.getFullYear();
-  const nowmonth = now.getMonth() + 1;
-
-  const endValue = endtimestamp3.value;
-
-  // 如果结束值不为 null，则获取结束日期的年份和月份
-  let endYear, endMonth;
-  if (endValue !== null) {
-    const endDate = new Date(endValue);
-    endYear = endDate.getFullYear();
-    endMonth = endDate.getMonth() + 1;
-  }
-
-  // 计算选择日期和结束日期之间的月份差
-  const monthDiff = (endYear - year) * 12 + (endMonth - month);
-
-  // 禁用2023年6月之前的日期和当前月份之后的日期，
-  // 以及选择的日期晚于结束日期或与结束日期相差12个月以上
-  if (
-    year < 2023 ||
-    year > nowyear ||
-    (year === nowyear && month >= nowmonth) ||
-    (endYear !== undefined &&
-      (year > endYear || (year === endYear && month > endMonth))) ||
-    monthDiff >= 12
-  ) {
-    return true;
-  }
-
-  return false;
-};
-
-const disableEndDate3 = (ts) => {
-  const date = new Date(ts);
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const now = new Date(); // 获取当前时间
-  const nowyear = now.getFullYear();
-  const nowmonth = now.getMonth() + 1;
-
-  const startValue = starttimestamp3.value;
-
-  // 如果起始值不为 null，则获取起始日期的年份和月份
-  let startYear, startMonth;
-  if (startValue !== null) {
-    const startDate = new Date(startValue);
-    startYear = startDate.getFullYear();
-    startMonth = startDate.getMonth() + 1;
-  }
-
-  // 计算选择日期和起始日期之间的月份差
-  const monthDiff = (year - startYear) * 12 + (month - startMonth);
-
-  // 禁用2023年6月之前的日期和当前月份之后的日期
-  // 以及选择的日期早于起始日期或与起始日期相差12个月以上
-  if (
-    year < 2023 ||
-    year > nowyear ||
-    (year === nowyear && month >= nowmonth) ||
-    (startYear !== undefined &&
-      (year < startYear || (year === startYear && month < startMonth))) ||
-    monthDiff >= 12
-  ) {
-    return true;
-  }
-
-  return false;
-};
-
-const monthcontrl1 = (value) => {
+// 3. 月報 (限制 12 個月)
+const disableMonthlyStart = (ts) => {
+  const d = new Date(ts);
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1; // 注意：getMonth() 返回的月份范围是 0 到 11
-  const formattedMonth = month < 10 ? `0${month}` : month;
-  const formattedDate = `${year}-${formattedMonth}`;
-  if (formattedDate !== value) {
-    starttimestamp3.value = value;
-  }
+  if (d < MIN_DATE || d >= new Date(now.getFullYear(), now.getMonth(), 1)) return true;
+  if (!dateState.end3) return false;
+  const endD = new Date(dateState.end3);
+  const monthDiff = (endD.getFullYear() - d.getFullYear()) * 12 + (endD.getMonth() - d.getMonth());
+  return d > endD || monthDiff >= 12;
 };
-
-const monthcontrl2 = (value) => {
+const disableMonthlyEnd = (ts) => {
+  const d = new Date(ts);
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1; // 注意：getMonth() 返回的月份范围是 0 到 11
-  const formattedMonth = month < 10 ? `0${month}` : month;
-  const formattedDate = `${year}-${formattedMonth}`;
-  if (formattedDate !== value) {
-    endtimestamp3.value = value;
-  }
+  if (d < MIN_DATE || d >= new Date(now.getFullYear(), now.getMonth(), 1)) return true;
+  if (!dateState.start3) return false;
+  const startD = new Date(dateState.start3);
+  const monthDiff = (d.getFullYear() - startD.getFullYear()) * 12 + (d.getMonth() - startD.getMonth());
+  return d < startD || monthDiff >= 12;
 };
 
-function formatDate(dateString) {
-  var date = new Date(dateString);
-  var year = date.getFullYear();
-  var month = ("0" + (date.getMonth() + 1)).slice(-2);
-  var day = ("0" + date.getDate()).slice(-2);
-  var formattedDateString = year + "-" + month + "-" + day;
-  return formattedDateString;
-}
+// --- 表頭動態生成 ---
+const columns = [
+  "date", "責任區", "場站代號", "站名", "狀態", "項目",
+  ...Array.from({ length: 24 }, (_, i) => `${i}`), // 0 ~ 23
+  "總計"
+];
 
+const makeExecl = (nowdata, name) => {
+  if (!nowdata || !nowdata.length) return errorAlert("空資料不能匯出");
+  const workbook = XLSX.utils.book_new();
+  const worksheet = XLSX.utils.json_to_sheet(nowdata, { skipHeader: true }); // 防止印出 item 屬性
+  XLSX.utils.book_append_sheet(workbook, worksheet, "sheet1");
+  XLSX.utils.sheet_add_aoa(worksheet, [columns], { origin: "A1" });
+  XLSX.writeFile(workbook, `${name}.xlsx`);
+};
+
+// --- API 請求與資料處理 ---
 const getData = async () => {
   try {
-    let catestart = null;
-    let cateend = null;
+    let catestart = null, cateend = null;
     if (itemcategory.value === "day_empty_full") {
-      catestart = starttimestamp.value;
-      cateend = endtimestamp.value;
+      catestart = dateState.start1; cateend = dateState.end1;
     } else if (itemcategory.value === "weekly_empty_full") {
-      catestart = starttimestamp2.value;
-      cateend = endtimestamp2.value;
+      catestart = dateState.start2; cateend = dateState.end2;
     } else if (itemcategory.value === "monthly_empty_full") {
-      catestart = `${starttimestamp3.value}-01`;
-      cateend = `${endtimestamp3.value}-01`;
+      catestart = `${dateState.start3}-01`; cateend = `${dateState.end3}-01`;
     }
+
     isLoading.value = true;
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/gcpfun`;
     const params = {
       dataset_id: "data_analysis",
       table_id: itemcategory.value,
@@ -884,100 +255,64 @@ const getData = async () => {
       city: city.value,
       item: item.value,
       status: status.value,
-      sys: category.value,
+      sys: sysCategory.value,
     };
-    const res = await axios.get(url, { params });
-    const resdata = res.data.data;
-    console.log(resdata);
-    let arr = [];
-    resdata.forEach((element) => {
-      let obj = [];
-      obj = {
-        item1: formatDate(element.date),
-        item2: element.responsible_area,
-        item3: element.s_no,
-        item4: element.s_name,
-        item5: element.status,
-        item6: element.item,
-        item7: element.r0,
-        item8: element.r1,
-        item9: element.r2,
-        item10: element.r3,
-        item11: element.r4,
-        item12: element.r5,
-        item13: element.r6,
-        item14: element.r7,
-        item15: element.r8,
-        item16: element.r9,
-        item17: element.r10,
-        item18: element.r11,
-        item19: element.r12,
-        item20: element.r13,
-        item21: element.r14,
-        item22: element.r15,
-        item23: element.r16,
-        item24: element.r17,
-        item25: element.r18,
-        item26: element.r19,
-        item27: element.r20,
-        item28: element.r21,
-        item29: element.r22,
-        item30: element.r23,
-        item31: element.total,
+
+    // 🚀 使用共用 API
+    const res = await getGcpReport(params);
+    const resdata = res.data?.data || [];
+
+// 💡 🚀 透過迴圈動態產出 0~23 小時的資料，並加入穩定的日期轉換
+    const formattedData = resdata.map(element => {
+      let formattedDate = "";
+      if (element.date) {
+        const d = new Date(element.date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        formattedDate = `${year}-${month}-${day}`;
+      }
+
+      const row = {
+        item1: formattedDate, // 🚀 改用格式化後的日期
+        item2: element.responsible_area ?? "",
+        item3: element.s_no ?? "",
+        item4: element.s_name ?? "",
+        item5: element.status ?? "",
+        item6: element.item ?? "",
       };
-      arr.push({ ...obj });
+      
+      // 動態填寫 r0 到 r23
+      for (let i = 0; i < 24; i++) {
+        row[`item${i + 7}`] = element[`r${i}`] ?? 0;
+      }
+      row.item31 = element.total ?? 0;
+      return row;
     });
-    data.value = [...arr];
-    makeExecl(data.value, columns.value, `無車無位統計`);
-    isLoading.value = false;
+
+    makeExecl(formattedData, "無車無位統計");
+
   } catch (error) {
-    console.log(error);
+    console.error("API Error:", error);
+    errorAlert("查詢失敗，請稍後再試");
+  } finally {
+    isLoading.value = false;
   }
 };
-const status = ref([]);
-const statusoptions = [
-  {
-    label: "分鐘",
-    value: "分鐘",
-  },
-  {
-    label: "次數",
-    value: "次數",
-  },
-];
 
 const search = () => {
-  if (itemcategory.value === "請選擇") {
-    return errorAlert("請選擇類別");
-  } else if (category.value === "請選擇") {
-    return errorAlert("請選擇系統別");
-  } else if (city.value.length === 0) {
-    return errorAlert("請選擇城市");
-  } else if (item.value === "請選擇") {
-    return errorAlert("請選擇項目");
-  } else if (status.value.length === 0) {
-    return errorAlert("請選擇狀態");
-  } else if (itemcategory.value === "day_empty_full") {
-    if (!starttimestamp.value) {
-      return errorAlert("請選擇開始日期");
-    } else if (!endtimestamp.value) {
-      return errorAlert("請選擇結束日期");
-    }
-  } else if (itemcategory.value === "weekly_empty_full") {
-    if (!starttimestamp2.value) {
-      return errorAlert("請選擇開始日期");
-    } else if (!endtimestamp2.value) {
-      return errorAlert("請選擇結束日期");
-    }
-  } else if (itemcategory.value === "monthly_empty_full") {
-    if (!starttimestamp3.value) {
-      return errorAlert("請選擇開始日期");
-    } else if (!endtimestamp3.value) {
-      return errorAlert("請選擇結束日期");
-    }
-  }
+  if (!itemcategory.value) return errorAlert("請選擇類別");
+  if (!sysCategory.value) return errorAlert("請選擇系統別");
+  if (!city.value.length) return errorAlert("請選擇城市");
+  if (!item.value) return errorAlert("請選擇項目");
+  if (!status.value.length) return errorAlert("請選擇狀態");
+
+  if (itemcategory.value === "day_empty_full" && (!dateState.start1 || !dateState.end1)) return errorAlert("請選擇完整日期");
+  if (itemcategory.value === "weekly_empty_full" && (!dateState.start2 || !dateState.end2)) return errorAlert("請選擇完整日期");
+  if (itemcategory.value === "monthly_empty_full" && (!dateState.start3 || !dateState.end3)) return errorAlert("請選擇完整月份");
+
   getData();
 };
 </script>
 
-<style></style>
+<style scoped></style>

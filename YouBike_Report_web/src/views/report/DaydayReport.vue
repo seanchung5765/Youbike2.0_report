@@ -1,177 +1,163 @@
 <template>
   <div class="container-fluid px-0">
-    <Loading
-      v-model:active="isLoading"
-      :can-cancel="false"
-      :is-full-page="true"
-    />
+    <loading v-model:active="isLoading" :can-cancel="false" :is-full-page="true" />
+    
     <div class="row mx-0">
-      <h1 class="report-h1 fw-bold">
-        各專案N天以上卡數達成率(每月5號更新資料)
-      </h1>
+      <h1 class="report-h1 fw-bold">各專案達成率統計</h1>
     </div>
 
     <form
-      class="row mx-0"
+      class="mx-0 py-2 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
+      style="display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; overflow-x: auto;"
     >
-      <div
-        class="row mx-0 mx-md-2 align-items-center col-md-2 col-12 mt-3 mt-md-0"
-      >
-        <n-date-picker
-          class="px-0"
-          v-model:formatted-value="timestamp"
-          type="year"
-          :actions="null"
-          :input-readonly="true"
-          :is-date-disabled="disableDate"
-          placeholder="請選擇日期"
-          value-format="yyyy"
+      <div style="width: 140px; flex-shrink: 0;">
+        <n-date-picker 
+          v-model:formatted-value="timestamp" 
+          type="year" 
+          placeholder="年份" 
+          value-format="yyyy" 
+          :is-date-disabled="disableDate" 
         />
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <button
-          type="button"
-          class="btn btn-success text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          @click="search"
-        >
-          搜尋
-        </button>
-        <output-excel
-          class="btn btn-primary text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          :data="exceldata"
-          :name="excelename"
-          :header="excelecolumn"
-        />
+
+      <div style="display: flex; gap: 8px; flex-shrink: 0;">
+        <button type="button" class="btn btn-success text-light fw-bold" @click="search">搜尋</button>
+        <output-excel class="btn btn-primary text-light fw-bold" :data="exceldata" :name="excelename" :header="excelecolumn" />
       </div>
     </form>
-    <n-data-table
-      v-show="data.length > 1"
-      ref="dataTable"
-      :columns="column"
-      :data="data"
-      :pagination="{ pageSize: 20 }"
-      :max-height="600"
-      :scroll-x="1300"
-      size="small"
-      :bordered="false"
-      :single-line="false"
-      striped
-    />
+
+    <div style="height: calc(100vh - 160px); padding-bottom: 10px;">
+      <n-data-table
+        v-show="rawApiData.length > 0"
+        ref="dataTable"
+        :columns="columns"
+        :data="rawApiData"
+        :scroll-x="1600"
+        size="small"
+        striped
+        :bordered="false"
+        :single-line="false"
+        flex-height
+        style="height: 100%;"
+        :row-class-name="rowClassName"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import axios from "axios";
 import { ref, inject } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { NDataTable, NDatePicker } from "naive-ui";
 import OutputExcel from "../../components/OutputExcel.vue";
-const swal = inject("$swal");
-async function NotAlert(text) {
-  swal({
-    icon: "error",
-    title: `${text}`,
-    showConfirmButton: false,
-  });
-}
 
+// 🚀 引入共用 API
+import { getGcpReport } from "@/api/report";
+
+// --- 狀態定義 ---
 const ischange = inject("ischange");
+const swal = inject("$swal");
 const isLoading = ref(false);
-const data = ref([]);
+const timestamp = ref(null);
 const dataTable = ref(null);
-const timestamp = ref();
+
+const rawApiData = ref([]); 
 
 let exceldata = [];
 let excelename = "";
 let excelecolumn = [];
 
+// --- 🌟 斑馬紋設定 ---
+const rowClassName = (row, index) => {
+  return index % 2 === 0 ? 'table-row-white' : 'table-row-gray';
+};
+
+// --- 輔助函式 ---
+async function NotAlert(text) {
+  swal({ icon: "error", title: text, showConfirmButton: false });
+}
+
 const disableDate = (ts) => {
-  const date = new Date(ts);
-  const year = date.getFullYear();
-
-  const now = new Date(); // 取得當前時間
-  const nowYear = now.getFullYear();
-
-  // 禁用 2020 年之前的日期
-  if (year < 2022) {
-    return true;
-  }
-
-  // 禁用未来日期
-  if (year > nowYear) {
-    return true;
-  }
-
-  return false;
+  const year = new Date(ts).getFullYear();
+  const nowYear = new Date().getFullYear();
+  return year < 2022 || year > nowYear;
 };
 
-const column = ref([]);
-const makecolumn = () => {
-  column.value.push({
-    key: "item",
+// --- 動態生成 12 個月的表頭 (固定左側項目) ---
+const columns = [
+  { 
+    key: "item", 
+    align: "center", 
+    fixed: "left", 
+    title: "項目", 
+    width: 250 
+  },
+  ...Array.from({ length: 12 }, (_, i) => ({
+    key: `month${i + 1}`,
     align: "center",
-    fixed: "left",
-    title: "項目",
-    width: 200,
-  });
-  for (let i = 1; i <= 12; i++) {
-    column.value.push({
-      key: `month${i}`,
-      align: "center",
-      title: `${i}月`,
-    });
-  }
-};
-makecolumn();
+    title: `${i + 1}月`,
+    width: 100
+  }))
+];
 
 const makeExecl = (nowdata, nowcolumn, name) => {
-  exceldata = [];
-  excelename = "";
-  excelecolumn = [];
   exceldata = [...nowdata];
   excelename = name;
-  nowcolumn.forEach((item) => {
-    excelecolumn.push(item.title);
-  });
+  excelecolumn = nowcolumn.map(item => item.title);
 };
 
+// --- API 請求與資料處理 ---
 const getDate = async () => {
   try {
-    data.value = [];
     isLoading.value = true;
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/gcpfun`;
     const params = {
       dataset_id: "data_analysis",
       table_id: "tan_tan_1",
       date: timestamp.value,
     };
-    const res = await axios.get(url, { params });
 
-    res.data.data.forEach((element, index) => {
-      data.value.push({
-        item: element.item,
-      });
+    const res = await getGcpReport(params);
+    const resdata = res.data?.data || [];
+
+    // 資料正規化：存入原始陣列
+    rawApiData.value = resdata.map((element) => {
+      const row = { item: element.item };
       for (let i = 1; i <= 12; i++) {
-        data.value[index][`month${i}`] = element[`month${i}`];
+        row[`month${i}`] = element[`month${i}`] ?? 0;
       }
+      return row;
     });
-    makeExecl(data.value, column.value, "各專案N天以上卡數達成率");
-    dataTable.value.page(1);
-    isLoading.value = false;
+
+    makeExecl(rawApiData.value, columns, "各專案達成率統計");
+    
   } catch (error) {
-    console.log(error);
+    console.error("API Error:", error);
+    NotAlert("查詢失敗，請稍後再試");
+  } finally {
+    isLoading.value = false;
   }
 };
 
 const search = () => {
-  if (!timestamp.value) {
-    return NotAlert("請選擇日期");
-  }
-
+  if (!timestamp.value) return NotAlert("請選擇年份");
   getDate();
 };
 </script>
 
-<style></style>
+<style scoped>
+/* 🌟 強制覆蓋斑馬紋顏色 (包含固定在左側的欄位) */
+:deep(.table-row-white) > td {
+  background-color: #ffffff !important;
+}
+
+:deep(.table-row-gray) > td {
+  background-color: #e8e8e8 !important; /* 翔宇指定的深灰色 */
+}
+
+/* 滑鼠經過高亮 */
+:deep(.n-data-table-tr:hover) > td {
+  background-color: #e6f7ff !important;
+}
+</style>

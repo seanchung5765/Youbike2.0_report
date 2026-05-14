@@ -1,57 +1,37 @@
-require("dotenv").config();
-var express = require("express");
-var path = require("path");
-var cookieParser = require("cookie-parser");
-var logger = require("morgan");
-const { editgcpdata } = require("./service/GetldaptoGCP");
-const cors = require("cors");
-const history = require("connect-history-api-fallback");
-// const { SendMailTatol } = require("./tool/sendEmail");
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const app = express();
 
-const indexRouter = require("./routes/index");
-const usersRouter = require("./routes/users");
-const authRouter = require("./routes/isauth");
-const toexcelRouter = require("./routes/toexcel");
-const smsRouter = require("./routes/sms");
-const lotteryRouter = require("./routes/lottery");
-const mailRouter = require("./routes/mail");
-const dbRouter = require("./routes/db");
-const { createGCPMysqlPool } = require("./service/cloudSql");
-
-var app = express();
+// 基礎設定
 app.use(cors());
-app.use(logger("dev"));
-// 允许最大 1MB 的 JSON 请求体
-app.use(express.json({ limit: "1mb" }));
-// 对 URL-encoded 形式允许最大 1MB，使用 qs 库进行解析
-app.use(express.urlencoded({ limit: "1mb", extended: true }));
-app.use(cookieParser());
-app.use("/db", dbRouter);
-app.use("/sms", smsRouter);
-app.use(history());
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
-app.use(express.static(path.join(__dirname, "public")));
+// 路由模組
+const authRouter = require('./routes/auth');
+const adminRouter = require('./routes/admin');
+const stationRouter = require('./routes/station');
+const reportRouter = require('./routes/report');
 
-//每天一點更新從ldap跟新資料到GCP
-editgcpdata();
-//連接資料庫
-createGCPMysqlPool();
+// 路由分發
+app.use('/auth', authRouter);       // 負責 /login
+app.use('/admin', adminRouter);     // 負責權限管理 (roles, users, citys)
+app.use('/station', stationRouter); // 負責場站狀態 (catch_4)
+app.use('/report', reportRouter);   // 負責大數據報表
 
-app.use("/toexcel", toexcelRouter);
-app.use("/", indexRouter);
-app.use("/users", usersRouter);
-app.use("/isauth", authRouter);
-app.use("/lottery", lotteryRouter);
-app.use("/mail", mailRouter);
 
+// 啟動排程任務
+// const { editgcpdata } = require('./service/ldapSync');
+// editgcpdata();
+
+// 錯誤處理中介軟體
 app.use((err, req, res, next) => {
-  const { message, statusCode, isOperational } = err;
-  if (!isOperational) {
-    res.status(500).json({
-      message: "發生未知錯誤請聯絡管理員",
-    });
-  }
-  res.status(statusCode).json({ message });
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
+    status: 'error',
+    message: err.message || '伺服器發生錯誤',
+  });
 });
 
 module.exports = app;

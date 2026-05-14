@@ -4,36 +4,29 @@
     <div class="row mx-0">
       <h1 class="report-h1 fw-bold">2.0E電池狀況查詢</h1>
     </div>
+    
+    <!-- 🚀 優化：套用強制不換行 + 橫向捲軸的排版 -->
     <form
-      class="row mx-0"
+      class="d-flex flex-nowrap align-items-center gap-3 mx-0 py-2 px-3 overflow-x-auto"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
     >
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <label class="col-md-auto col-form-label px-0 px-md-2 fw-bolder">城市:</label>
-        <div class="col-md-auto px-0">
-          <select class="form-select form-select-sm" aria-label="car" v-model="city">
-            <option selected disabled>請選擇</option>
-            <option value="台北市2.0E" v-if="canusecitys.includes(2)">台北市2.0E</option>
-            <option value="新北市2.0E" v-if="canusecitys.includes(3)">新北市2.0E</option>
-            <option value="桃園市2.0E" v-if="canusecitys.includes(4)">桃園市2.0E</option>
-            <option value="新竹2.0E" v-if="canusecitys.includes(5)">新竹市2.0E</option>
-            <option value="竹縣2.0E" v-if="canusecitys.includes(6)">新竹縣2.0E</option>
-            <option value="竹科2.0E" v-if="canusecitys.includes(20)">竹科2.0E</option>
-            <option value="苗栗縣2.0E" v-if="canusecitys.includes(7)">苗栗縣2.0E</option>
-            <option value="台中市2.0E" v-if="canusecitys.includes(8)">台中市2.0E</option>
-            <option value="嘉義市2.0E" v-if="canusecitys.includes(12)">嘉義市2.0E</option>
-            <option value="嘉義縣2.0E" v-if="canusecitys.includes(13)">嘉義縣2.0E</option>
-            <option value="台南市2.0E" v-if="canusecitys.includes(14)">台南市2.0E</option>
-            <option value="高雄市2.0E" v-if="canusecitys.includes(15)">高雄市2.0E</option>
-            <option value="屏東縣2.0E" v-if="canusecitys.includes(16)">屏東縣2.0E</option>
-            <option value="台東縣2.0E" v-if="canusecitys.includes(19)">台東縣2.0E</option>
-          </select>
+      <!-- 城市選擇 -->
+      <div class="d-flex align-items-center">
+        <label class="col-form-label fw-bolder me-2 text-nowrap">城市:</label>
+        <div style="width: 140px; flex-shrink: 0;">
+          <!-- 🚀 優化：換成 n-select，消滅原本寫死的 v-if -->
+          <n-select
+            v-model:value="city"
+            :options="cityOptions"
+            placeholder="請選擇城市"
+            filterable
+          />
         </div>
       </div>
 
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0">
+      <!-- 開始日期 -->
+      <div style="width: 150px; flex-shrink: 0;">
         <n-date-picker
-          class="px-0 mx-0"
           v-model:formatted-value="starttimestamp"
           type="date"
           :actions="null"
@@ -43,9 +36,10 @@
           value-format="yyyy-MM-dd"
         />
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0">
+
+      <!-- 結束日期 -->
+      <div style="width: 150px; flex-shrink: 0;">
         <n-date-picker
-          class="px-0 mx-0"
           v-model:formatted-value="endtimestamp"
           type="date"
           :actions="null"
@@ -56,29 +50,31 @@
         />
       </div>
 
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
+      <!-- 按鈕群組 -->
+      <div class="d-flex gap-2 ">
         <button
           type="button"
-          class="btn btn-info text-light mt-3 mt-md-0 col-md-auto mx-md-2"
+          class="btn btn-info text-light text-nowrap"
           @click="cleardate"
         >
           清空日期
         </button>
         <button
           type="button"
-          class="btn btn-success text-light mt-3 mt-md-0 col-md-auto mx-md-2"
+          class="btn btn-success text-light text-nowrap"
           @click="search"
         >
           搜尋
         </button>
         <output-excel
-          class="btn btn-primary text-light mt-3 mt-md-0 col-md-auto mx-md-2"
+          class="btn btn-primary text-light text-nowrap"
           :data="exceldata"
           :name="excelename"
           :header="excelecolumn"
         />
       </div>
     </form>
+    
     <n-data-table
       v-show="data.length > 0"
       ref="dataTable"
@@ -91,51 +87,95 @@
       :bordered="false"
       :single-line="false"
       striped
+      :row-class-name="rowClassName"
     />
   </div>
 </template>
 
 <script setup>
-import axios from "axios";
-import { ref, inject } from "vue";
+import { ref, inject, computed, onMounted } from "vue";
 import { useUserStore } from "../../stores/userdata";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
-import { NDataTable, NDatePicker } from "naive-ui";
+import { NDataTable, NDatePicker, NSelect } from "naive-ui";
 import OutputExcel from "../../components/OutputExcel.vue";
+
+// 🌟 引入我們封裝好的兩個 API
+import { getCityList } from "@/api/station";
+import { getGcpReport } from "@/api/report";
+
 const ischange = inject("ischange");
 const store = useUserStore();
-const canusecitys = store.citys;
+const canusecitys = store.citys || [];
 const swal = inject("$swal");
-async function NotCityAlert(text) {
-  swal({
-    icon: "error",
-    title: `${text}`,
-    showConfirmButton: false,
-  });
-}
+
+const NotCityAlert = (text) => {
+  swal({ icon: "error", title: text, showConfirmButton: false });
+};
+
 const isLoading = ref(false);
 const data = ref([]);
-const starttimestamp = ref();
-const endtimestamp = ref();
-const city = ref("請選擇");
+const starttimestamp = ref(null);
+const endtimestamp = ref(null);
+const city = ref(null); 
 const dataTable = ref(null);
 const columns = ref([]);
+const cityConfig = ref([]); // 🌟 存放從資料庫撈回來的縣市資料
 
 let exceldata = [];
 let excelename = "";
 let excelecolumn = [];
-const makeExecl = (nowdata, col, name) => {
-  //初始化
-  exceldata = [];
-  excelename = "";
-  excelecolumn = [];
 
+// --- 🌟 初始化載入縣市設定 ---
+const loadCities = async () => {
+  try {
+    const res = await getCityList();
+    const allCitiesFromDB = res.data.data || [];
+    // 只保留該員工有權限的縣市
+    cityConfig.value = allCitiesFromDB.filter(c => canusecitys.includes(c.id));
+  } catch (error) {
+    console.error("載入縣市清單失敗", error);
+  }
+};
+
+onMounted(() => {
+  loadCities();
+});
+
+// --- 🚀 動態城市選項 (動態資料庫版) ---
+const cityOptions = computed(() => {
+  if (cityConfig.value.length === 0) return [];
+  
+  const options = [];
+  
+  cityConfig.value.forEach(cityData => {
+    if (!cityData.codes) return;
+    
+    // 確認這個城市有沒有 2.0 系統 (看 codes 裡面有沒有 2 結尾的)
+    const hasV2 = cityData.codes.split(',').some(c => c.trim().endsWith("2"));
+    
+    if (hasV2) {
+      // 💡 相容舊版 GCP 報表的特殊命名：新竹市叫「新竹2.0E」，新竹縣叫「竹縣2.0E」
+      let valName = cityData.name;
+      if (valName === "新竹市") valName = "新竹";
+      if (valName === "新竹縣") valName = "竹縣";
+
+      options.push({ 
+        label: cityData.name, 
+        value: `${valName}2.0E` 
+      });
+    }
+  });
+
+  return options;
+});
+
+// ----------------------------------------
+
+const makeExecl = (nowdata, col, name) => {
   exceldata = [...nowdata];
   excelename = name;
-  col.forEach((item) => {
-    excelecolumn.push(item.title);
-  });
+  excelecolumn = col.map(item => item.title);
 };
 
 const cleardate = () => {
@@ -143,83 +183,42 @@ const cleardate = () => {
   endtimestamp.value = null;
 };
 
+// --- 日期防呆邏輯優化 ---
+const getMidnightTime = (dateStr) => {
+  if (!dateStr) return null;
+  return new Date(dateStr).setHours(0, 0, 0, 0);
+};
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
 const disablestartDate = (ts) => {
-  const endDateValue = endtimestamp.value;
-  const currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0); // 设置当前日期的时间为午夜
+  const selectedTime = new Date(ts).setHours(0, 0, 0, 0);
+  const todayTime = new Date().setHours(0, 0, 0, 0);
+  if (selectedTime >= todayTime) return true;
 
-  if (endDateValue) {
-    const endDate = new Date(endDateValue);
-    endDate.setHours(0, 0, 0, 0); // 设置结束日期的时间为午夜
-
-    const startDate = new Date(endDate);
-    startDate.setDate(startDate.getDate() - 30);
-
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (
-      selectedDate < startDate ||
-      selectedDate > endDate ||
-      selectedDate >= currentDate
-    ) {
-      // 如果选中日期在结束日期之前、结束日期后的31天之外，或是今天及未来的日期，禁用选中日期
-      return true;
-    }
-  } else {
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (selectedDate >= currentDate) {
-      // 如果选中日期是今天及未来的日期，禁用选中日期
-      return true;
-    }
+  const endTime = getMidnightTime(endtimestamp.value);
+  if (endTime && (selectedTime > endTime || selectedTime < (endTime - THIRTY_DAYS_MS))) {
+    return true;
   }
+  return false;
 };
 
 const disableEndDate = (ts) => {
-  const startDateValue = starttimestamp.value;
-  const currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0); // 设置当前日期的时间为午夜
+  const selectedTime = new Date(ts).setHours(0, 0, 0, 0);
+  const todayTime = new Date().setHours(0, 0, 0, 0);
+  if (selectedTime >= todayTime) return true;
 
-  if (startDateValue) {
-    const startDate = new Date(startDateValue);
-    startDate.setHours(0, 0, 0, 0); // 设置起始日期的时间为午夜
-
-    if (startDate > currentDate) {
-      // 如果起始日期大于当前日期，禁用所有日期
-      return true;
-    }
-
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 30);
-
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (
-      selectedDate < startDate ||
-      selectedDate > endDate ||
-      selectedDate >= currentDate
-    ) {
-      // 如果选中日期在起始日期之前、起始日期后的31天之外，或是今天及未来的日期，禁用选中日期
-      return true;
-    }
-  } else {
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (selectedDate >= currentDate) {
-      // 如果选中日期是今天及未来的日期，禁用选中日期
-      return true;
-    }
+  const startTime = getMidnightTime(starttimestamp.value);
+  if (startTime && (selectedTime < startTime || selectedTime > (startTime + THIRTY_DAYS_MS))) {
+    return true;
   }
+  return false;
 };
 
+// --- API 與資料處理 ---
 const getData = async () => {
   try {
     isLoading.value = true;
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/gcpfun`;
     const params = {
       dataset_id: "data_analysis",
       table_id: "battery_analysis",
@@ -227,53 +226,83 @@ const getData = async () => {
       end_date: endtimestamp.value,
       city: city.value,
     };
-    // console.log(params);
-    const res = await axios.get(url, { params });
 
-    const resdata = res.data.data;
-    console.log(res);
-    //製作column
-    const col = [];
-    resdata[0].forEach((item, index) => {
-      col.push({
+    const res = await getGcpReport(params);
+    const resdata = res.data?.data;
+
+    if (!resdata || resdata.length === 0) {
+      data.value = [];
+      columns.value = [];
+      return;
+    }
+
+    const headers = resdata[0];
+    
+    // 🌟 修改：把 index === 1 的「項目」欄位也加上 fixed: "left"
+    columns.value = headers.map((item, index) => {
+      let colDef = {
         key: `item${index + 1}`,
         align: "center",
         title: item,
-      });
-    });
-    col[0]["fixed"] = "left";
-    col[0]["width"] = 100;
-    col[1]["width"] = 210;
-    //製作data
-    let arr = [];
-    resdata.forEach((items, indexes) => {
-      if (indexes === 0) {
-        return;
+      };
+
+      if (index === 0) {
+        // 第一欄：日期/縣市
+        colDef.fixed = "left";
+        colDef.width = 100;
+      } else if (index === 1) {
+        // 第二欄：項目 (鎖定在左側)
+        colDef.fixed = "left"; 
+        colDef.width = 210;
       }
-      arr.push({});
-      items.forEach((item, index) => {
-        arr[indexes - 1][`item${index + 1}`] = item;
-      });
+
+      return colDef;
     });
-    data.value = [...arr];
-    columns.value = [...col];
+
+    data.value = resdata.slice(1).map(rowArray => {
+      const rowObject = {};
+      rowArray.forEach((val, i) => {
+        rowObject[`item${i + 1}`] = val;
+      });
+      return rowObject;
+    });
+
     makeExecl(data.value, columns.value, "2.0E電池狀況查詢");
-    isLoading.value = false;
+
   } catch (error) {
-    console.log(error);
+    console.error("查詢錯誤:", error);
+    NotCityAlert("查詢失敗，請稍後再試");
+  } finally {
+    isLoading.value = false;
   }
 };
 
+const rowClassName = (row, index) => {
+  // index 是從 0 開始，所以餘數為 0 給白色，餘數為 1 給灰色
+  return index % 2 === 0 ? 'table-row-white' : 'table-row-gray';
+};
+
 const search = () => {
-  if (city.value == "請選擇") {
-    return NotCityAlert("請選擇城市");
-  } else if (!starttimestamp.value) {
-    return NotCityAlert("請選擇開始日期");
-  } else if (!endtimestamp.value) {
-    return NotCityAlert("請選擇結束日期");
-  }
+  if (!city.value) return NotCityAlert("請選擇城市");
+  if (!starttimestamp.value) return NotCityAlert("請選擇開始日期");
+  if (!endtimestamp.value) return NotCityAlert("請選擇結束日期");
+  
   getData();
 };
 </script>
 
-<style></style>
+<style scoped>
+/* 🌟 強制覆蓋單雙數行的背景色，包含固定在左側的欄位 */
+:deep(.table-row-white) > td {
+  background-color: #ffffff !important;
+}
+
+:deep(.table-row-gray) > td {
+  background-color: #e8e8e8 !important; /* 舒服的淺灰色 */
+}
+
+/* 🌟 (可選) 滑鼠游標經過時的高亮顏色，讓使用者知道自己看到哪一行 */
+:deep(.n-data-table-tr:hover) > td {
+  background-color: #e6f7ff !important; /* 淺藍色 */
+}
+</style>

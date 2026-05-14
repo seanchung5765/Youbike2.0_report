@@ -1,0 +1,10 @@
+# 第一層：大廚房，工具齊全
+FROM node:20-alpine as build-stage
+WORKDIR /app
+COPY . .
+RUN npm install && npm run build
+
+# 第二層：小餐車，只裝成品
+FROM nginx:alpine
+# 🚀 關鍵動作：只把成品（dist）搬過來，其餘的 Node.js 垃圾都丟掉
+COPY --from=build-stage /app/dist /usr/share/nginx/html

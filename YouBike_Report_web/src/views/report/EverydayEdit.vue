@@ -10,308 +10,199 @@
     </div>
 
     <form
-      class="row mx-0"
+      class="mx-0 py-2 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
+      style="display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; overflow-x: auto;"
     >
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <div
-          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
-        >
-          <n-date-picker
-            class="px-0"
-            v-model:formatted-value="starttimestamp"
-            type="date"
-            :actions="null"
-            :input-readonly="true"
-            :update-value-on-close="true"
-            default-time="2023-06-20"
-            placeholder="開始日期"
-            value-format="yyyy-MM-dd"
-            :is-date-disabled="disablestartDate"
-          />
-        </div>
-        <div
-          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
-        >
-          <n-date-picker
-            class="px-0"
-            v-model:formatted-value="endtimestamp"
-            type="date"
-            :actions="null"
-            :input-readonly="true"
-            :is-date-disabled="disableEndDate"
-            :update-value-on-close="true"
-            placeholder="結束日期"
-            value-format="yyyy-MM-dd"
-          />
-        </div>
-      </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <button
-          type="button"
-          class="btn btn-info text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          @click="cleardate"
-        >
-          清空日期
-        </button>
-        <button
-          type="button"
-          class="btn btn-success text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          @click="search"
-        >
-          搜尋
-        </button>
-
-        <output-excel
-          class="btn btn-primary text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          :data="exceldata"
-          :name="excelename"
-          :header="excelecolumn"
+      <div style="width: 150px; flex-shrink: 0;">
+        <n-date-picker
+          v-model:formatted-value="starttimestamp"
+          type="date"
+          :actions="null"
+          :input-readonly="true"
+          placeholder="開始日期"
+          value-format="yyyy-MM-dd"
+          :is-date-disabled="disablestartDate"
         />
       </div>
+
+      <span class="fw-bold" style="flex-shrink: 0;">至</span>
+
+      <div style="width: 150px; flex-shrink: 0;">
+        <n-date-picker
+          v-model:formatted-value="endtimestamp"
+          type="date"
+          :actions="null"
+          :input-readonly="true"
+          placeholder="結束日期"
+          value-format="yyyy-MM-dd"
+          :is-date-disabled="disableEndDate"
+        />
+      </div>
+
+      <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: 8px;">
+        <button type="button" class="btn btn-info text-light fw-bold" @click="cleardate">清空日期</button>
+        <button type="button" class="btn btn-success text-light fw-bold" @click="search">搜尋</button>
+        <output-excel class="btn btn-primary text-light fw-bold" :data="exceldata" :name="excelename" :header="excelecolumn" />
+      </div>
     </form>
-    <n-data-table
-      v-show="totaldata.length > 0"
-      ref="dataTable"
-      size="small"
-      :columns="columns"
-      :data="totaldata"
-      :pagination="{ pageSize: 13 }"
-      :max-height="600"
-      :scroll-x="500"
-      :bordered="false"
-      :single-line="false"
-      striped
-    />
+
+    <div style="height: calc(100vh - 160px); padding-bottom: 10px;">
+      <n-data-table
+        v-show="totaldata.length > 0"
+        ref="dataTable"
+        size="small"
+        :columns="columns"
+        :data="totaldata"
+        :scroll-x="1000"
+        :bordered="false"
+        :single-line="false"
+        striped
+        flex-height
+        style="height: 100%;"
+        :row-class-name="rowClassName"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import axios from "axios";
 import { ref, inject } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
-import OutputExcel from "../../components/OutputExcel.vue";
 import { NDataTable, NDatePicker } from "naive-ui";
+import OutputExcel from "../../components/OutputExcel.vue";
 
-//亮亮模式暗暗模式切換
+// 🚀 引入共用 API
+import { getGcpReport } from "@/api/report";
+
 const ischange = inject("ischange");
 const swal = inject("$swal");
-async function NotCityAlert(text) {
-  swal({
-    icon: "error",
-    title: `${text}`,
-    showConfirmButton: false,
-  });
-}
-const starttimestamp = ref();
-const endtimestamp = ref();
 
+async function NotCityAlert(text) {
+  swal({ icon: "error", title: text, showConfirmButton: false });
+}
+
+const starttimestamp = ref(null);
+const endtimestamp = ref(null);
 const isLoading = ref(false);
-const dataTable = ref(null);
 const totaldata = ref([]);
-const columns = ref();
+const dataTable = ref(null);
 
 let exceldata = [];
 let excelename = "";
 let excelecolumn = [];
 
-const makeExecl = (nowdata, nowcolumn, name) => {
-  exceldata = [];
-  excelename = "";
-  excelecolumn = [];
-  exceldata = [...nowdata];
-  excelename = name;
-  nowcolumn.forEach((item) => {
-    excelecolumn.push(item.title);
-  });
-};
+// --- 日期防呆 ---
+const TODAY = new Date().setHours(0, 0, 0, 0);
+const MIN_DATE = new Date(2023, 8, 1).getTime();
 
 const disablestartDate = (ts) => {
-  const endDateValue = endtimestamp.value;
-  const currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0); // 设置当前日期的时间为午夜
-
-  const date = new Date(ts);
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  // 禁用2012年8月之前的日期和当前月份以后的日期
-  if (year < 2023 || (year === 2023 && month < 9)) {
-    return true;
+  if (ts < MIN_DATE || ts >= TODAY) return true;
+  if (endtimestamp.value) {
+    const end = new Date(endtimestamp.value).getTime();
+    const thirtyDaysAgo = end - 30 * 24 * 60 * 60 * 1000;
+    return ts < thirtyDaysAgo || ts > end;
   }
-
-  if (endDateValue) {
-    const endDate = new Date(endDateValue);
-    endDate.setHours(0, 0, 0, 0); // 设置结束日期的时间为午夜
-
-    const startDate = new Date(endDate);
-    startDate.setDate(startDate.getDate() - 30);
-
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (
-      selectedDate < startDate ||
-      selectedDate > endDate ||
-      selectedDate >= currentDate
-    ) {
-      // 如果选中日期在结束日期之前、结束日期后的31天之外，或是今天及未来的日期，禁用选中日期
-      return true;
-    }
-  } else {
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (selectedDate >= currentDate) {
-      // 如果选中日期是今天及未来的日期，禁用选中日期
-      return true;
-    }
-  }
+  return false;
 };
 
 const disableEndDate = (ts) => {
-  const startDateValue = starttimestamp.value;
-  const currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0); // 设置当前日期的时间为午夜
-
-  const date = new Date(ts);
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  // 禁用2012年8月之前的日期和当前月份以后的日期
-  if (year < 2023 || (year === 2023 && month < 9)) {
-    return true;
+  if (ts < MIN_DATE || ts >= TODAY) return true;
+  if (starttimestamp.value) {
+    const start = new Date(starttimestamp.value).getTime();
+    const thirtyDaysAfter = start + 30 * 24 * 60 * 60 * 1000;
+    return ts < start || ts > thirtyDaysAfter;
   }
-
-  if (startDateValue) {
-    const startDate = new Date(startDateValue);
-    startDate.setHours(0, 0, 0, 0); // 设置起始日期的时间为午夜
-
-    if (startDate > currentDate) {
-      // 如果起始日期大于当前日期，禁用所有日期
-      return true;
-    }
-
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 30);
-
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (
-      selectedDate < startDate ||
-      selectedDate > endDate ||
-      selectedDate >= currentDate
-    ) {
-      // 如果选中日期在起始日期之前、起始日期后的31天之外，或是今天及未来的日期，禁用选中日期
-      return true;
-    }
-  } else {
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (selectedDate >= currentDate) {
-      // 如果选中日期是今天及未来的日期，禁用选中日期
-      return true;
-    }
-  }
+  return false;
 };
-
-function formatDateToYYYYMMDD(dateString) {
-  // 創建一個 Date 物件
-  const originalDate = new Date(dateString);
-
-  // 獲得年、月、日
-  const year = originalDate.getUTCFullYear(); // 獲得年份
-  const month = (originalDate.getUTCMonth() + 1).toString().padStart(2, "0"); // 獲得月份，並填充到兩位數
-  const day = originalDate.getUTCDate().toString().padStart(2, "0"); // 獲得日期，並填充到兩位數
-
-  // 將日期轉換為 "YYYY-MM-DD" 的格式
-  return `${year}-${month}-${day}`;
-}
 
 const cleardate = () => {
   starttimestamp.value = null;
   endtimestamp.value = null;
 };
 
-const makecol = () => {
-  let arr = [
-    {
-      key: "item1",
-      align: "center",
-      title: "日期",
-    },
-    {
-      key: "item2",
-      align: "center",
-      title: "縣市",
-    },
-    {
-      key: "item3",
-      align: "center",
-      title: "刪減票卡數",
-    },
-    {
-      key: "item4",
-      align: "center",
-      title: "增加票卡數",
-    },
-  ];
-  columns.value = [...arr];
-  // columns
+// --- 🌟 斑馬紋設定 ---
+const rowClassName = (row, index) => {
+  return index % 2 === 0 ? 'table-row-white' : 'table-row-gray';
 };
 
-const makedata = (item) => {
-  let arr = [];
-  item.forEach((item) => {
-    arr.push({
-      item1: formatDateToYYYYMMDD(item.date),
-      item2: item.city,
-      item3: item.del_card,
-      item4: item.add_card,
-    });
-  });
-  totaldata.value = [...arr];
+// --- 欄位平均優化 ---
+const columns = [
+  { key: "item1", align: "center", title: "日期", width: 250 },
+  { key: "item2", align: "center", title: "縣市", width: 250 },
+  { key: "item3", align: "center", title: "刪減票卡數", width: 250 },
+  { key: "item4", align: "center", title: "增加票卡數", width: 250 },
+];
+
+const makeExecl = (nowdata, name) => {
+  exceldata = [...nowdata];
+  excelename = name;
+  excelecolumn = columns.map(col => col.title);
 };
 
+// --- API 請求與資料處理 ---
 const getData = async () => {
-  //確認是否為
-
-  const url = `${import.meta.env.VITE_NODE_URL}/isauth/gcpfun`;
-
-  const params = {
-    dataset_id: "report",
-    table_id: "add_del_card",
-    begin_date: starttimestamp.value,
-    end_date: endtimestamp.value,
-  };
   try {
     isLoading.value = true;
-    const res = await axios.get(url, { params });
-    isLoading.value = false;
-    const resdata = res.data.data;
-    makecol();
-    makedata(resdata);
-    if (dataTable.value) {
-      dataTable.value.page(1);
-    }
-    makeExecl(totaldata.value, columns.value, "每日新增&刪減票卡數");
+    const params = {
+      dataset_id: "report",
+      table_id: "add_del_card",
+      begin_date: starttimestamp.value,
+      end_date: endtimestamp.value,
+    };
+
+    const res = await getGcpReport(params);
+    const resdata = res.data?.data || [];
+
+    // 資料轉換
+    totaldata.value = resdata.map(item => {
+      let formattedDate = "";
+      if (item.date) {
+        const d = new Date(item.date);
+        const year = d.getFullYear();
+        const month = (d.getMonth() + 1).toString().padStart(2, "0");
+        const day = d.getDate().toString().padStart(2, "0");
+        formattedDate = `${year}年${month}月${day}日`;
+      }
+
+      return {
+        item1: formattedDate,
+        item2: item.city ?? "",
+        item3: item.del_card ?? 0,
+        item4: item.add_card ?? 0,
+      };
+    });
+
+    makeExecl(totaldata.value, "每日新增&刪減票卡數");
+    
   } catch (error) {
-    console.log(error);
+    console.error("API Error:", error);
+    NotCityAlert("查詢失敗，請稍後再試");
+  } finally {
+    isLoading.value = false;
   }
 };
 
 const search = () => {
-  if (!starttimestamp.value) {
-    NotCityAlert("請選擇開始日期");
-    return;
-  } else if (!endtimestamp.value) {
-    NotCityAlert("請選擇結束日期");
-    return;
-  }
-
+  if (!starttimestamp.value) return NotCityAlert("請選擇開始日期");
+  if (!endtimestamp.value) return NotCityAlert("請選擇結束日期");
   getData();
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+/* 🌟 強制覆蓋斑馬紋顏色 */
+:deep(.table-row-white) > td {
+  background-color: #ffffff !important;
+}
+
+:deep(.table-row-gray) > td {
+  background-color: #e8e8e8 !important; /* 翔宇指定的深灰色 */
+}
+
+/* 滑鼠經過高亮 */
+:deep(.n-data-table-tr:hover) > td {
+  background-color: #e6f7ff !important;
+}
+</style>

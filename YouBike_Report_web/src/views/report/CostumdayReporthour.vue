@@ -1,691 +1,286 @@
 <template>
   <div class="container-fluid px-0">
-    <loading
-      v-model:active="isLoading"
-      :can-cancel="false"
-      :is-full-page="true"
-    />
+    <loading v-model:active="isLoading" :can-cancel="false" :is-full-page="true" />
     <div class="row mx-0">
       <h1 class="report-h1 fw-bold">每小時明細表</h1>
     </div>
+
     <form
-      class="row mx-0"
+      class="mx-0 py-2 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
+      style="display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; overflow-x: auto;"
     >
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <label class="col-md-auto col-form-label px-0 px-md-2 fw-bolder"
-          >系統別:</label
-        >
-        <div class="col-md-auto px-0">
-          <select
-            class="form-select form-select-sm"
-            aria-label="car"
-            v-model="category"
-            @change="city = '請選擇'"
-          >
-            <option selected disabled>請選擇</option>
-            <option value="1.0">1.0</option>
-            <option value="2.0">2.0</option>
-          </select>
-        </div>
-      </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <label class="col-md-auto col-form-label px-0 px-md-2 fw-bolder"
-          >城市:</label
-        >
-        <div class="col-md-auto px-0">
-          <select
-            class="form-select form-select-sm"
-            aria-label="car"
-            v-model="city"
-          >
-            <option selected disabled>請選擇</option>
-            <template v-if="category == 2">
-              <option value="TP" v-if="canusecitys.includes(2)">台北市</option>
-              <option value="NTP2" v-if="canusecitys.includes(3)">
-                新北市
-              </option>
-              <option value="Taoyuan_two" v-if="canusecitys.includes(4)">
-                桃園市
-              </option>
-              <option value="Hsinchu2" v-if="canusecitys.includes(5)">
-                新竹市
-              </option>
-              <option value="Hsinchu_Country" v-if="canusecitys.includes(6)">
-                新竹縣
-              </option>
-              <option value="Miaoli_two" v-if="canusecitys.includes(7)">
-                苗栗縣
-              </option>
-              <option value="Taichung2" v-if="canusecitys.includes(8)">
-                台中市
-              </option>
-              <option value="Chiayi" v-if="canusecitys.includes(12)">
-                嘉義市
-              </option>
-              <option value="Tainan" v-if="canusecitys.includes(14)">
-                台南市
-              </option>
-              <option value="Kaohsiung" v-if="canusecitys.includes(15)">
-                高雄市
-              </option>
-              <option value="Pingtung" v-if="canusecitys.includes(16)">
-                屏東縣
-              </option>
-            </template>
-            <template v-else-if="category == 1">
-              <option value="NTP" v-if="canusecitys.includes(3)">新北市</option>
-              <option value="Taoyuan" v-if="canusecitys.includes(4)">
-                桃園縣
-              </option>
-              <option value="Miaoli" v-if="canusecitys.includes(7)">
-                苗栗縣
-              </option>
-              <option value="Taichung" v-if="canusecitys.includes(8)">
-                台中市
-              </option>
-            </template>
-          </select>
-        </div>
-        <div
-          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
-        >
-          <n-date-picker
-            class="px-0"
-            v-model:formatted-value="timestamp"
-            type="date"
-            :actions="null"
-            :input-readonly="true"
-            :update-value-on-close="true"
-            placeholder="請選擇日期"
-            value-format="yyyy-MM-dd"
-            :is-date-disabled="disableStartDate"
+      <div style="display: flex; align-items: center; flex-shrink: 0;">
+        <label class="fw-bolder me-2 mb-0" style="white-space: nowrap;">城市:</label>
+        <div style="width: 140px;">
+          <n-select
+            v-model:value="city"
+            :options="cityOptions"
+            placeholder="請選擇"
+            filterable
           />
         </div>
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
+
+      <div style="width: 160px; flex-shrink: 0;">
+        <n-date-picker
+          v-model:formatted-value="timestamp"
+          type="date"
+          :actions="null"
+          :input-readonly="true"
+          :update-value-on-close="true"
+          placeholder="請選擇日期"
+          value-format="yyyy-MM-dd"
+          :is-date-disabled="disableStartDate"
+        />
+      </div>
+
+      <div style="display: flex; gap: 8px; flex-shrink: 0;">
         <button
           type="button"
-          class="btn btn-success text-light mt-3 mt-md-0 col-md-auto mx-md-2"
+          class="btn btn-success text-light fw-bold"
+          style="white-space: nowrap;"
           @click="search"
         >
           搜尋
         </button>
         <output-excel
-          class="btn btn-primary text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          :data="exceldata"
+          class="btn btn-primary text-light fw-bold"
+          style="white-space: nowrap;"
+          :data="totaldata"
           :name="excelename"
           :header="excelecolumn"
         />
       </div>
     </form>
-    <n-data-table
-      ref="dataTable"
-      size="small"
-      v-if="totaldata.length > 1"
-      :pagination="{ pageSize: 17 }"
-      :columns="columns"
-      :data="totaldata"
-      :max-height="600"
-      :scroll-x="700"
-      :bordered="false"
-      :single-line="false"
-      striped
-    />
+
+    <div style="height: calc(100vh - 160px); padding-bottom: 10px;">
+      <n-data-table
+        ref="dataTable"
+        size="small"
+        v-show="totaldata.length > 0"
+        :columns="columns"
+        :data="totaldata"
+        :scroll-x="1000"
+        :bordered="false"
+        :single-line="false"
+        striped
+        flex-height
+        style="height: 100%;"
+        :row-class-name="rowClassName"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import axios from "axios";
-import { ref, inject } from "vue";
+import { ref, inject, computed, onMounted } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
-import { NDataTable, NDatePicker } from "naive-ui";
+import { NDataTable, NDatePicker, NSelect } from "naive-ui";
 import { useUserStore } from "../../stores/userdata";
 import OutputExcel from "../../components/OutputExcel.vue";
+
+// 引入 API
+import { getCityList } from "@/api/station";
+import { getGcpReport } from "@/api/report";
+
 const store = useUserStore();
-const canusecitys = store.citys;
+const canusecitys = store.citys || [];
 const ischange = inject("ischange");
 const swal = inject("$swal");
-async function NotCityAlert(text) {
-  swal({
-    icon: "error",
-    title: `${text}`,
-    showConfirmButton: false,
-  });
-}
+
+const NotCityAlert = (text) => swal({ icon: "error", title: text, showConfirmButton: false });
+
 const dataTable = ref(null);
-const city = ref("請選擇");
-const category = ref("請選擇");
+const city = ref(null); 
 const isLoading = ref(false);
 const totaldata = ref([]);
-const timestamp = ref();
-
-const disableStartDate = (ts) => {
-  const date = new Date(ts);
-  const now = new Date(); // 获取当前时间
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // 将时间重设为今天的凌晨，以去掉时、分、秒和毫秒
-
-  // 禁用2023年8月8日之前的日期和未来的日期
-  if (date < new Date(2023, 7, 8) || date >= today) {
-    return true;
-  }
-
-  return false;
-};
-
+const timestamp = ref(null);
 const columns = ref([]);
-const TPcol = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "台北2.0進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "台北2.0掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "台北2.0接通數",
-  },
-  {
-    key: "item5",
-    align: "center",
-    title: "1999進線數",
-  },
-  {
-    key: "item6",
-    align: "center",
-    title: "1999掛斷數",
-  },
-  {
-    key: "item7",
-    align: "center",
-    title: "1999接通數",
-  },
-  {
-    key: "item8",
-    align: "center",
-    title: "5511進線數",
-  },
-  {
-    key: "item9",
-    align: "center",
-    title: "5511掛斷數",
-  },
-  {
-    key: "item10",
-    align: "center",
-    title: "5511接通數",
-  },
-];
-const NTPcol = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "新北2.0進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "新北2.0掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "新北2.0接通數",
-  },
-];
-const NTP2col = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "新北1.0進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "新北1.0掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "新北1.0接通數",
-  },
-];
-const Taoyuancol = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "桃園1.0進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "桃園1.0掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "桃園1.0接通數",
-  },
-];
+const cityConfig = ref([]); 
 
-const Taoyuan_twocol = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "桃園2.0進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "桃園2.0掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "桃園2.0接通數",
-  },
-];
-const Hsinchu2col = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "新竹2.0進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "新竹2.0掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "新竹2.0接通數",
-  },
-];
-const Hsinchu_Countrycol = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "竹縣2.0進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "竹縣2.0掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "竹縣2.0接通數",
-  },
-];
-const Miaolicol = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "苗栗1.0進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "苗栗1.0掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "苗栗1.0接通數",
-  },
-];
-const Miaoli_twocol = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "苗栗2.0進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "苗栗2.0掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "苗栗2.0接通數",
-  },
-];
-const Chiayicol = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "嘉義進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "嘉義掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "嘉義接通數",
-  },
-];
-const Taichungcol = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "台中1.0進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "台中1.0掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "台中1.0接通數",
-  },
-];
-const Taichung2col = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "台中2.0進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "台中2.0掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "台中2.0接通數",
-  },
-];
-const Tainancol = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "台南2.0進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "台南2.0掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "台南2.0接通數",
-  },
-];
-const Kaohsiungcol = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "高雄2.0進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "高雄2.0掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "高雄2.0接通數",
-  },
-  {
-    key: "item5",
-    align: "center",
-    title: "0800進線數",
-  },
-  {
-    key: "item6",
-    align: "center",
-    title: "0800掛斷數",
-  },
-  {
-    key: "item7",
-    align: "center",
-    title: "0800接通數",
-  },
-];
-const Pingtungcol = [
-  {
-    key: "item1",
-    align: "center",
-    fixed: "left",
-    title: "日期/時段",
-  },
-  {
-    key: "item2",
-    align: "center",
-    title: "屏東2.0進線數",
-  },
-  {
-    key: "item3",
-    align: "center",
-    title: "屏東2.0掛斷數",
-  },
-  {
-    key: "item4",
-    align: "center",
-    title: "屏東2.0接通數",
-  },
-];
-
-let exceldata = [];
 let excelename = "";
 let excelecolumn = [];
-const makeExecl = (nowdata, nowcolumn, name) => {
-  exceldata = [];
-  excelename = "";
-  excelecolumn = [];
 
-  exceldata = [...nowdata];
-  excelename = name;
-  nowcolumn.forEach((item) => {
-    excelecolumn.push(item.title);
-  });
-};
-
-const changecity = () => {
-  if (city.value === "TP") {
-    columns.value = [...TPcol];
-  } else if (city.value === "NTP2") {
-    columns.value = [...NTP2col];
-  } else if (city.value === "NTP") {
-    columns.value = [...NTPcol];
-  } else if (city.value === "Taoyuan") {
-    columns.value = [...Taoyuancol];
-  } else if (city.value === "Taoyuan_two") {
-    columns.value = [...Taoyuan_twocol];
-  } else if (city.value === "Hsinchu2") {
-    columns.value = [...Hsinchu2col];
-  } else if (city.value === "Hsinchu_Country") {
-    columns.value = [...Hsinchu_Countrycol];
-  } else if (city.value === "Miaoli") {
-    columns.value = [...Miaolicol];
-  } else if (city.value === "Chiayi") {
-    columns.value = [...Chiayicol];
-  } else if (city.value === "Taichung2") {
-    columns.value = [...Taichung2col];
-  } else if (city.value === "Taichung") {
-    columns.value = [...Taichungcol];
-  } else if (city.value === "Kaohsiung") {
-    columns.value = [...Kaohsiungcol];
-  } else if (city.value === "Tainan") {
-    columns.value = [...Tainancol];
-  } else if (city.value === "Pingtung") {
-    columns.value = [...Pingtungcol];
-  } else if (city.value === "Miaoli_two") {
-    columns.value = [...Miaoli_twocol];
+// --- 初始化載入縣市設定 ---
+const loadCities = async () => {
+  try {
+    const res = await getCityList();
+    const allCitiesFromDB = res.data.data || [];
+    cityConfig.value = allCitiesFromDB.filter(c => canusecitys.includes(c.id));
+  } catch (error) {
+    console.error("載入縣市清單失敗", error);
   }
 };
 
+onMounted(() => {
+  loadCities();
+});
+
+// --- 🌟 動態城市選單 (嚴格對齊 GCP 舊版參數) ---
+const cityOptions = computed(() => {
+  if (cityConfig.value.length === 0) return [];
+  const options = [];
+
+  cityConfig.value.forEach(cityData => {
+    if (!cityData.codes) return;
+    const codes = cityData.codes.split(',').map(c => c.trim());
+    const code2 = codes.find(c => c.endsWith("2"));
+
+    if (code2) {
+      // 💡 嚴格對應舊版 API 需要的 Key
+      let valKey = code2;
+      if (code2 === "Taipei2") valKey = "TP";
+      if (code2 === "Newtaipei2") valKey = "NTP2";
+      if (code2 === "Taoyuan2") valKey = "Taoyuan_two";
+      if (code2 === "Miaoli2") valKey = "Miaoli_two";
+      if (code2 === "Hsinchu2") valKey = "Hsinchu2";
+      if (code2 === "Hsinchu_Country2") valKey = "Hsinchu_Country";
+      if (code2 === "Taichung2") valKey = "Taichung2";
+      if (code2 === "Chiayi2") valKey = "Chiayi";
+      if (code2 === "Tainan2") valKey = "Tainan";
+      if (code2 === "Kaohsiung2") valKey = "Kaohsiung";
+      if (code2 === "Pingtung2") valKey = "Pingtung";
+      if (code2 === "Taitung2") valKey = "Taitung";
+      
+      options.push({ label: cityData.name, value: valKey });
+    }
+  });
+  return options;
+});
+
+// --- 表頭對應表 ---
+const buildCol = (title2, title3, title4) => [
+  { key: "item1", align: "center", fixed: "left", title: "日期/時段", width: 120 },
+  { key: "item2", align: "center", title: title2, width: 130 },
+  { key: "item3", align: "center", title: title3, width: 130 },
+  { key: "item4", align: "center", title: title4, width: 130 }
+];
+
+const columnMap = {
+  TP: [
+    ...buildCol("台北2.0進線數", "台北2.0掛斷數", "台北2.0接通數"),
+    { key: "item5", align: "center", title: "1999進線數", width: 120 },
+    { key: "item6", align: "center", title: "1999掛斷數", width: 120 },
+    { key: "item7", align: "center", title: "1999接通數", width: 120 },
+    { key: "item8", align: "center", title: "5511進線數", width: 120 },
+    { key: "item9", align: "center", title: "5511掛斷數", width: 120 },
+    { key: "item10", align: "center", title: "5511接通數", width: 120 }
+  ],
+  Kaohsiung: [
+    ...buildCol("高雄2.0進線數", "高雄2.0掛斷數", "高雄2.0接通數"),
+    { key: "item5", align: "center", title: "0800進線數", width: 120 },
+    { key: "item6", align: "center", title: "0800掛斷數", width: 120 },
+    { key: "item7", align: "center", title: "0800接通數", width: 120 }
+  ],
+  NTP2: buildCol("新北2.0進線數", "新北2.0掛斷數", "新北2.0接通數"),
+  Taoyuan_two: buildCol("桃園2.0進線數", "桃園2.0掛斷數", "桃園2.0接通數"),
+  Hsinchu2: buildCol("新竹2.0進線數", "新竹2.0掛斷數", "新竹2.0接通數"),
+  Hsinchu_Country: buildCol("竹縣2.0進線數", "竹縣2.0掛斷數", "竹縣2.0接通數"),
+  Miaoli_two: buildCol("苗栗2.0進線數", "苗栗2.0掛斷數", "苗栗2.0接通數"),
+  Chiayi: buildCol("嘉義進線數", "嘉義掛斷數", "嘉義接通數"),
+  Taichung2: buildCol("台中2.0進線數", "台中2.0掛斷數", "台中2.0接通數"),
+  Tainan: buildCol("台南2.0進線數", "台南2.0掛斷數", "台南2.0接通數"),
+  Pingtung: buildCol("屏東2.0進線數", "屏東2.0掛斷數", "屏東2.0接通數"),
+  Taitung: buildCol("台東2.0進線數", "台東2.0掛斷數", "台東2.0接通數")
+};
+
+// --- 斑馬紋設定 ---
+const rowClassName = (row, index) => {
+  return index % 2 === 0 ? 'table-row-white' : 'table-row-gray';
+};
+
+// --- 日期防呆 ---
+const disableStartDate = (ts) => {
+  const date = new Date(ts).setHours(0, 0, 0, 0);
+  const minDate = new Date(2023, 7, 8).setHours(0, 0, 0, 0);
+  const today = new Date().setHours(0, 0, 0, 0);
+  return date < minDate || date >= today;
+};
+
+// --- 🌟 API 請求與資料處理 (完美還原舊版資料結構) ---
 const getdata = async () => {
   try {
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/gcpfun`;
-    let params = {
+    isLoading.value = true;
+    columns.value = columnMap[city.value] || [];
+
+    const params = {
       dataset_id: "report",
       table_id: "CTI_inline_detail",
       date: timestamp.value,
       city: city.value,
-      sys: category.value,
+      sys: "2.0", // 🌟 硬編碼為 2.0
     };
-    isLoading.value = true;
-    const res = await axios.get(url, { params });
-    const resdata = res.data.data;
-    const arr = [];
-    resdata.forEach((element) => {
+
+    const res = await getGcpReport(params);
+    const resdata = res.data?.data || [];
+
+    totaldata.value = resdata.map((element) => {
+      // 💡 針對台北與高雄，抓取 _two 的欄位；其他縣市雖然是 2.0，但後端給的是沒後綴的 total
       if (city.value === "TP") {
-        arr.push({
+        return {
           item1: element.time_range,
-          item2: element.total_two,
-          item3: element.hangup_two,
-          item4: element.answer_two,
-          item5: element.total_1999,
-          item6: element.hangup_1999,
-          item7: element.answer_1999,
-          item8: element.total_5511,
-          item9: element.hangup_5511,
-          item10: element.answer_5511,
-        });
+          item2: element.total_two ?? 0,
+          item3: element.hangup_two ?? 0,
+          item4: element.answer_two ?? 0,
+          item5: element.total_1999 ?? 0, 
+          item6: element.hangup_1999 ?? 0, 
+          item7: element.answer_1999 ?? 0,
+          item8: element.total_5511 ?? 0, 
+          item9: element.hangup_5511 ?? 0, 
+          item10: element.answer_5511 ?? 0,
+        };
       } else if (city.value === "Kaohsiung") {
-        arr.push({
+        return {
           item1: element.time_range,
-          item2: element.total_two,
-          item3: element.hangup_two,
-          item4: element.answer_two,
-          item5: element.total_0800,
-          item6: element.hangup_0800,
-          item7: element.answer_0800,
-        });
+          item2: element.total_two ?? 0,
+          item3: element.hangup_two ?? 0,
+          item4: element.answer_two ?? 0,
+          item5: element.total_0800 ?? 0, 
+          item6: element.hangup_0800 ?? 0, 
+          item7: element.answer_0800 ?? 0,
+        };
       } else {
-        arr.push({
+        return {
           item1: element.time_range,
-          item2: element.total,
-          item3: element.hangup,
-          item4: element.answer,
-        });
+          item2: element.total ?? 0,   // 🌟 舊版關鍵：其他縣市吃的是 total
+          item3: element.hangup ?? 0,  // 🌟 舊版關鍵：其他縣市吃的是 hangup
+          item4: element.answer ?? 0,  // 🌟 舊版關鍵：其他縣市吃的是 answer
+        };
       }
     });
-    totaldata.value = [...arr];
-    makeExecl(totaldata.value, columns.value, "每小時明細表");
-    if (dataTable.value) {
-      dataTable.value.page(1);
-    }
-    isLoading.value = false;
+
+    excelename = `每小時明細表_${city.value}_${timestamp.value}`;
+    excelecolumn = columns.value.map(item => item.title);
+
   } catch (error) {
-    console.log(error);
+    console.error("API Error:", error);
+    NotCityAlert("查詢失敗，請稍後再試");
+  } finally {
+    isLoading.value = false;
   }
 };
 
 const search = async () => {
-  if (category.value === "請選擇") {
-    return NotCityAlert("請選擇系統別");
-  } else if (city.value === "請選擇") {
-    return NotCityAlert("請選擇城市");
-  } else if (!timestamp.value) {
-    return NotCityAlert("請選擇日期");
-  }
-  changecity();
-
+  if (!city.value) return NotCityAlert("請選擇城市");
+  if (!timestamp.value) return NotCityAlert("請選擇日期");
   await getdata();
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+/* 🌟 強制覆蓋斑馬紋顏色 */
+:deep(.table-row-white) > td {
+  background-color: #ffffff !important;
+}
+
+:deep(.table-row-gray) > td {
+  background-color: #e8e8e8 !important; /* 翔宇指定的深灰色 */
+}
+
+/* 滑鼠經過高亮 */
+:deep(.n-data-table-tr:hover) > td {
+  background-color: #e6f7ff !important;
+}
+</style>

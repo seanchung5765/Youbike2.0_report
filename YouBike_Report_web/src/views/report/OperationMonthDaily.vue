@@ -1,122 +1,79 @@
 <template>
   <div class="container-fluid px-0">
     <loading v-model:active="isLoading" :can-cancel="false" :is-full-page="true" />
+
     <div class="row mx-0">
       <h1 class="report-h1 fw-bold">營運管理月報</h1>
     </div>
+    
     <form
-      class="row mx-0"
+      class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
+      style="display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; overflow-x: auto;"
     >
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <label class="col-md-auto col-form-label px-0 px-md-2 fw-bolder">系統別:</label>
-        <div class="col-md-auto px-0">
-          <select
-            class="form-select form-select-sm"
-            aria-label="car"
-            v-model="category"
-            @change="city = '請選擇'"
-          >
-            <option selected disabled>請選擇</option>
-            <option value="1">1.0</option>
-            <option value="2">2.0</option>
-            <option value="2E">2.0E</option>
-          </select>
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+        <label class="fw-bolder mb-0" style="white-space: nowrap;">系統別:</label>
+        <div style="width: 120px;">
+          <n-select
+            v-model:value="category"
+            :options="sysOptions"
+            @update:value="city = null"
+            placeholder="請選擇"
+          />
         </div>
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <label class="col-md-auto col-form-label px-0 px-md-2 fw-bolder">城市:</label>
-        <div class="col-md-auto px-0">
-          <select class="form-select form-select-sm" aria-label="car" v-model="city">
-            <option selected disabled>請選擇</option>
-            <template v-if="category == 2">
-              <option value="Taipei2" v-if="canusecitys.includes(2)">台北市</option>
-              <option value="Newtaipei2" v-if="canusecitys.includes(3)">新北市</option>
-              <option value="Taoyuan2" v-if="canusecitys.includes(4)">桃園市</option>
-              <option value="Hsinchu2" v-if="canusecitys.includes(5)">新竹市</option>
-              <option value="Hsinchu_Country2" v-if="canusecitys.includes(6)">
-                新竹縣
-              </option>
-              <option value="HsinchuScience2" v-if="canusecitys.includes(20)">
-                竹科
-              </option>
-              <option value="Miaoli2" v-if="canusecitys.includes(7)">苗栗縣</option>
-              <option value="Taichung2" v-if="canusecitys.includes(8)">台中市</option>
-              <option value="Chiayi2" v-if="canusecitys.includes(12)">嘉義市</option>
-              <option value="Chiayi_Country2" v-if="canusecitys.includes(13)">
-                嘉義縣
-              </option>
-              <option value="Tainan2" v-if="canusecitys.includes(14)">台南市</option>
-              <option value="Kaohsiung2" v-if="canusecitys.includes(15)">高雄市</option>
-              <option value="Pingtung2" v-if="canusecitys.includes(16)">屏東縣</option>
-              <option value="Taitung2" v-if="canusecitys.includes(19)">台東縣</option>
-            </template>
-            <template v-else-if="category == 1">
-              <option value="Newtaipei" v-if="canusecitys.includes(3)">新北市</option>
-              <option value="Taoyuan" v-if="canusecitys.includes(4)">桃園市</option>
-              <option value="Miaoli" v-if="canusecitys.includes(7)">苗栗縣</option>
-            </template>
-            <template v-else-if="category == '2E'">
-              <option value="Taipei2E" v-if="canusecitys.includes(2)">台北市</option>
-              <option value="Newtaipei2E" v-if="canusecitys.includes(3)">新北市</option>
-              <option value="Taoyuan2E" v-if="canusecitys.includes(4)">桃園市</option>
-              <option value="Hsinchu_Country2E" v-if="canusecitys.includes(6)">
-                新竹縣
-              </option>
-              <option value="HsinchuScience2E" v-if="canusecitys.includes(20)">
-                竹科
-              </option>
-              <option value="Miaoli2E" v-if="canusecitys.includes(7)">苗栗縣</option>
-              <option value="Taichung2E" v-if="canusecitys.includes(8)">台中市</option>
-              <option value="Chiayi2E" v-if="canusecitys.includes(12)">嘉義市</option>
-              <option value="Chiayi_Country2E" v-if="canusecitys.includes(13)">
-                嘉義縣
-              </option>
-              <option value="Tainan2E" v-if="canusecitys.includes(14)">台南市</option>
-              <option value="Kaohsiung2E" v-if="canusecitys.includes(15)">高雄市</option>
-              <option value="Pingtung2E" v-if="canusecitys.includes(16)">屏東縣</option>
-              <option value="Taitung2E" v-if="canusecitys.includes(19)">台東縣</option>
-            </template>
-          </select>
+
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+        <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
+        <div style="width: 140px;">
+          <n-select
+            v-model:value="city"
+            :options="cityOptions"
+            placeholder="請選擇"
+          />
         </div>
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-2 col-12 mt-3 mt-md-0">
+
+      <div style="width: 140px; flex-shrink: 0;">
         <n-date-picker
-          class="px-0"
           v-model:formatted-value="timestamp"
           type="year"
           :actions="null"
           :input-readonly="true"
           :is-date-disabled="disableDate"
-          placeholder="請選擇日期"
+          placeholder="請選擇年份"
           value-format="yyyy"
         />
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
+
+      <div style="display: flex; gap: 8px; flex-shrink: 0;">
         <button
           type="button"
-          class="btn btn-success text-light mt-3 mt-md-0 col-md-auto mx-md-2"
+          class="btn btn-success text-light"
+          style="white-space: nowrap;"
           @click="search"
         >
           搜尋
         </button>
         <output-excel
-          class="btn btn-primary text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          :data="exceldata"
-          :name="excelename"
-          :header="excelecolumn"
+          class="btn btn-primary text-light"
+          style="white-space: nowrap;"
+          :data="dataTable"
+          :name="excelName"
+          :header="excelHeaders"
         />
       </div>
     </form>
+
     <n-data-table
+      v-show="dataTable.length > 0"
       size="small"
-      v-if="dataTable.length"
       ref="table"
       :row-class-name="rowClassName"
       :columns="columns"
       :data="dataTable"
       :max-height="600"
-      :scroll-x="1000"
+      :scroll-x="1200"
       :bordered="false"
       :single-line="false"
       striped
@@ -125,186 +82,160 @@
 </template>
 
 <script setup>
-import axios from "axios";
-import { ref, inject } from "vue";
+import { ref, inject, computed } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { useUserStore } from "../../stores/userdata";
-import { NDataTable, NDatePicker } from "naive-ui";
+import { NDataTable, NDatePicker, NSelect } from "naive-ui";
 import OutputExcel from "../../components/OutputExcel.vue";
+import { getGcpReport } from "@/api/report";
+
 const ischange = inject("ischange");
 const store = useUserStore();
-const canusecitys = store.citys;
+const canusecitys = store.citys || [];
 const swal = inject("$swal");
+
 async function NotCityAlert(text) {
-  swal({
-    icon: "error",
-    title: `${text}`,
-    showConfirmButton: false,
-  });
+  swal({ icon: "error", title: text, showConfirmButton: false });
 }
 
-const disableDate = (ts) => {
-  const date = new Date(ts);
-  const year = date.getFullYear();
-
-  const now = new Date(); // 取得當前時間
-  const nowYear = now.getFullYear();
-
-  // 禁用 2020 年之前的日期
-  if (year < 2020) {
-    return true;
-  }
-
-  // 禁用未来日期
-  if (year > nowYear) {
-    return true;
-  }
-  return false;
-};
-
-const table = ref(null);
-const city = ref("請選擇");
+// --- 狀態管理 ---
 const isLoading = ref(false);
-const category = ref("請選擇");
+const category = ref(null);
+const city = ref(null);
+const timestamp = ref(null);
 const dataTable = ref([]);
 const columns = ref([]);
-const timestamp = ref();
-let exceldata = [];
-let excelename = "";
-let excelecolumn = [];
+const excelName = ref("營運管理月報");
 
-const makeExecl = (nowdata, nowcolumn, name) => {
-  exceldata = [];
-  excelename = "";
-  excelecolumn = [];
-  exceldata = [...nowdata];
-  excelename = name;
-  nowcolumn.forEach((item) => {
-    excelecolumn.push(item.title);
-  });
+// --- 🚀 計算屬性：自動從 columns 中取出標題作為 Excel 表頭 ---
+const excelHeaders = computed(() => {
+  return columns.value.map(col => col.title);
+});
+
+// --- 選項定義 ---
+const sysOptions = [
+  { label: "1.0", value: "1" },
+  { label: "2.0", value: "2" },
+  { label: "2.0E", value: "2E" },
+];
+
+const cityOptions = computed(() => {
+  if (!category.value) return [];
+  const suffix = category.value === "1" ? "" : category.value === "2" ? "2" : "2E";
+  const map = [
+    { label: "台北市", baseValue: "Taipei", auth: 2 },
+    { label: "新北市", baseValue: "Newtaipei", auth: 3 },
+    { label: "桃園市", baseValue: "Taoyuan", auth: 4 },
+    { label: "新竹市", baseValue: "Hsinchu", auth: 5 },
+    { label: "新竹縣", baseValue: "Hsinchu_Country", auth: 6 },
+    { label: "竹科", baseValue: "HsinchuScience", auth: 20 },
+    { label: "苗栗縣", baseValue: "Miaoli", auth: 7 },
+    { label: "台中市", baseValue: "Taichung", auth: 8 },
+    { label: "嘉義市", baseValue: "Chiayi", auth: 12 },
+    { label: "嘉義縣", baseValue: "Chiayi_Country", auth: 13 },
+    { label: "台南市", baseValue: "Tainan", auth: 14 },
+    { label: "高雄市", baseValue: "Kaohsiung", auth: 15 },
+    { label: "屏東縣", baseValue: "Pingtung", auth: 16 },
+    { label: "台東縣", baseValue: "Taitung", auth: 19 },
+  ];
+
+  if (category.value === "1") {
+    return map.filter(c => ["Newtaipei", "Taoyuan", "Miaoli"].includes(c.baseValue) && canusecitys.includes(c.auth))
+               .map(c => ({ label: c.label, value: c.baseValue }));
+  }
+  return map.filter(c => canusecitys.includes(c.auth))
+            .map(c => ({ label: c.label, value: `${c.baseValue}${suffix}` }));
+});
+
+const disableDate = (ts) => {
+  const year = new Date(ts).getFullYear();
+  const nowYear = new Date().getFullYear();
+  return year < 2020 || year > nowYear;
 };
 
+// --- 🚀 API 請求與資料處理 ---
 const getDate = async () => {
   try {
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/gcpfun`;
+    isLoading.value = true;
     const params = {
       dataset_id: "report",
       table_id: `monthly_report_query${category.value}`,
       city: city.value,
       date: timestamp.value,
     };
-    isLoading.value = true;
-    const res = await axios.get(url, { params });
-    isLoading.value = false;
-    let data = [];
-    data = res.data.data;
+
+    const res = await getGcpReport(params);
+    const data = res.data?.data || [];
+
     if (data.length === 0) {
       columns.value = [];
       dataTable.value = [];
-      exceldata = [];
       return;
     }
-    //做column start
-    let column = [
-      {
-        key: "item1",
-        align: "center",
-        fixed: "left",
-        width: "200",
-        title: data[0].item,
-      },
-      {
-        key: "item2",
-        align: "center",
-        title: data[0].year1,
-      },
+
+    // 1. 動態建立 Columns
+    const colObj = data[0];
+    const newCols = [
+      { key: "item1", align: "center", fixed: "left", width: 200, title: colObj.item },
+      { key: "item2", align: "center", title: colObj.year1 },
     ];
     for (let i = 1; i <= 12; i++) {
-      column.push({
-        key: `item${i + 2}`,
-        align: "center",
-        title: data[0][`month${i}`],
-      });
+      newCols.push({ key: `item${i + 2}`, align: "center", title: colObj[`month${i}`] });
     }
-    column.push({
-      key: "item15",
-      align: "center",
-      title: data[0]["year2"],
-    });
-    //做cloumn end
+    newCols.push({ key: "item15", align: "center", title: colObj.year2 });
+    columns.value = newCols;
 
-    //做data start
-    let arr = [];
-    data.forEach((element, index) => {
-      if (index === 0) {
-        return;
+    // 2. 🚀 資料轉換 (消滅手寫對應)
+    const rows = [];
+    for (let i = 1; i < data.length; i++) {
+      const element = data[i];
+      const rowObj = {
+        item1: element.item ?? "",
+        item2: element.year1 ?? "",
+      };
+      for (let j = 1; j <= 12; j++) {
+        rowObj[`item${j + 2}`] = element[`month${j}`] ?? "";
       }
-      arr.push({
-        item1: element.item,
-        item2: element.year1,
-        item3: element.month1,
-        item4: element.month2,
-        item5: element.month3,
-        item6: element.month4,
-        item7: element.month5,
-        item8: element.month6,
-        item9: element.month7,
-        item10: element.month8,
-        item11: element.month9,
-        item12: element.month10,
-        item13: element.month11,
-        item14: element.month12,
-        item15: element.year2,
-      });
-    });
-    //做data end
-    columns.value = [...column];
-    dataTable.value = [...arr];
-    makeExecl(dataTable.value, columns.value, "經營管理月報");
+      rowObj.item15 = element.year2 ?? "";
+      rows.push(rowObj);
+    }
+    dataTable.value = rows;
+
+    // 💡 修正點：移除原有的 makeExecl 呼叫，不再自動下載
+    excelName.value = `${category.value === '1' ? '1.0' : category.value === '2' ? '2.0' : '2.0E'}_營運管理月報`;
+
   } catch (error) {
-    console.log(error);
+    console.error("API Error:", error);
+    NotCityAlert("查詢失敗，請稍後再試");
+  } finally {
+    isLoading.value = false;
   }
 };
 
-const search = async () => {
-  if (category.value == "請選擇") {
-    return NotCityAlert("請選擇系統別");
-  } else if (city.value === "請選擇") {
-    return NotCityAlert("請選擇城市");
-  } else if (!timestamp.value) {
-    return NotCityAlert("請選擇日期");
-  }
-
+const search = () => {
+  if (!category.value) return NotCityAlert("請選擇系統別");
+  if (!city.value) return NotCityAlert("請選擇城市");
+  if (!timestamp.value) return NotCityAlert("請選擇年份");
   getDate();
 };
 
 const rowClassName = (row) => {
+  const highlightItems = [
+    "場站資訊", "租借資訊", "收入資訊", "妥善率資訊", "票卡資訊",
+    "租賃收入明細", "各時段使用資訊", "營運資訊", "租賃時間使用資訊",
+    "維護管理", "騎乘距離分析", "保險投保數量", "註冊票卡淨增加數"
+  ];
   if (
-    row.item1 === "場站資訊" ||
-    row.item1 === "租借資訊" ||
-    row.item1 === "收入資訊" ||
-    row.item1 === "妥善率資訊" ||
-    row.item1 === "票卡資訊" ||
-    (row.item1 === "當月租借車次" &&
-      !row.item2 &&
-      !row.item3 &&
-      !row.item4 &&
-      !row.item5 &&
-      !row.item6) ||
-    row.item1 === "註冊票卡淨增加數" ||
-    row.item1 === "租賃收入明細" ||
-    row.item1 === "各時段使用資訊" ||
-    row.item1 === "營運資訊" ||
-    row.item1 === "租賃時間使用資訊" ||
-    row.item1 === "維護管理" ||
-    row.item1 === "騎乘距離分析" ||
-    row.item1 == "保險投保數量"
+    highlightItems.includes(row.item1) ||
+    (row.item1 === "當月租借車次" && !row.item2 && !row.item3 && !row.item4 && !row.item5 && !row.item6)
   ) {
     return "too-old";
   }
+  return "";
 };
 </script>
+
 <style scoped>
 :deep(.too-old td) {
   background-color: rgba(225, 232, 23, 0.75) !important;

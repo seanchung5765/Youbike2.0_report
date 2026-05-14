@@ -2,90 +2,66 @@
   <div class="container-fluid px-0">
     <loading v-model:active="isLoading" :can-cancel="false" :is-full-page="true" />
     <div class="row mx-0">
-      <h1 class="report-h1 fw-bold">借/還車場站排名(前幾名)(每月10號更新資料)</h1>
+      <h1 class="report-h1 fw-bold">借/還車場站排名 (前幾名)(每月10號更新資料)</h1>
     </div>
+
+    <!-- 🚀 鐵壁防禦排版：強制單行、橫向捲軸 -->
     <form
-      class="row mx-0"
+      class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
+      style="display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; overflow-x: auto;"
     >
-      <div class="row align-items-center col-md-auto col-12 pe-0">
-        <label class="col-md-auto col-form-label fw-bolder pe-0">借/還:</label>
+      <!-- 借/還選擇 -->
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+        <label class="fw-bolder mb-0" style="white-space: nowrap;">借/還:</label>
+        <div style="width: 130px;">
+          <n-select v-model:value="Borrow" placeholder="請選擇" multiple :options="Borrowoptions" :max-tag-count="1" />
+        </div>
       </div>
 
-      <div class="row mx-0 mx-md-2 align-items-center col-md-2 col-12">
-        <n-select
-          class="px-0"
-          v-model:value="Borrow"
-          placeholder="請選擇"
-          multiple
-          :options="Borrowoptions"
-          :max-tag-count="1"
-          size="medium"
-        />
+      <!-- 城市選擇 -->
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+        <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
+        <div style="width: 200px;">
+          <n-select v-model:value="city" placeholder="請選擇" multiple :options="cityOptions" :max-tag-count="1" />
+        </div>
+        <button type="button" class="btn btn-sm btn-success text-light" style="white-space: nowrap;" @click="setAllCity">全選</button>
       </div>
 
-      <div class="row align-items-center col-md-auto col-12 pe-0">
-        <label class="col-md-auto col-form-label fw-bolder pe-0">城市:</label>
-      </div>
-
-      <div class="row mx-0 mx-md-2 align-items-center col-md-3 col-12">
-        <n-select
-          class="px-0"
-          v-model:value="city"
-          placeholder="請選擇"
-          multiple
-          :options="cityoptions"
-          :max-tag-count="1"
-          size="medium"
-        />
-      </div>
-      <div class="row col-md-auto col-12 ps-md-0 pe-md-3 mx-auto mx-md-0 mb-3 mb-md-0">
-        <button
-          type="button"
-          class="btn btn-success text-light mt-3 mt-md-0"
-          @click="setallcity"
-        >
-          城市全選
-        </button>
-      </div>
-      <div class="row col-md-auto col-12 ps-md-0 pe-md-3 mx-auto mx-md-0">
+      <!-- 日期選擇 -->
+      <div style="width: 140px; flex-shrink: 0;">
         <n-date-picker
-          class="px-0"
           v-model:formatted-value="timestamp"
           type="month"
-          :actions="null"
-          :input-readonly="true"
-          :update-value-on-close="true"
-          placeholder="請選擇日期"
+          placeholder="選擇月份"
           value-format="yyyy-MM"
           :is-date-disabled="disablePreviousDate"
+          update-value-on-close
         />
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <button
-          type="button"
-          class="btn btn-success text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          @click="search"
-        >
-          搜尋
-        </button>
+
+      <!-- 按鈕組 -->
+      <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
+        <button type="button" class="btn btn-success text-light" style="white-space: nowrap;" @click="search">搜尋</button>
         <output-excel
-          class="btn btn-primary text-light mt-3 mt-md-0 col-md-auto mx-md-2"
+          class="btn btn-primary text-light"
+          style="white-space: nowrap;"
           :data="exceldata"
           :name="excelename"
           :header="excelecolumn"
         />
       </div>
     </form>
+
     <n-data-table
-      v-show="data.length > 1"
+      v-show="data.length > 0"
       size="small"
       :data="data"
       ref="dataTable"
       :columns="columns"
-      :pagination="{ pageSize: 17 }"
+      :pagination="{ pageSize: 15 }"
       :max-height="600"
-      :scroll-x="500"
+      :scroll-x="800"
       :bordered="false"
       :single-line="false"
       striped
@@ -94,316 +70,89 @@
 </template>
 
 <script setup>
-import axios from "axios";
-import { ref, inject } from "vue";
+import { ref, inject, computed } from "vue";
 import { useUserStore } from "../../stores/userdata";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { NDataTable, NSelect, NDatePicker } from "naive-ui";
 import OutputExcel from "../../components/OutputExcel.vue";
+// 🚀 引入共用 API
+import { getGcpReport } from "@/api/report";
+
 const store = useUserStore();
-const canusecitys = store.citys;
+const canusecitys = store.citys || [];
 const ischange = inject("ischange");
+const swal = inject("$swal");
+
 const isLoading = ref(false);
+const timestamp = ref(null);
 const Borrow = ref([]);
 const data = ref([]);
-const dataTable = ref(null);
-const timestamp = ref();
 const city = ref([]);
-const swal = inject("$swal");
+const dataTable = ref(null);
+
+// 🚀 響應式 Excel 變數，供 OutputExcel 元件使用
+const exceldata = ref([]);
+const excelename = ref("");
+const excelecolumn = ref([]);
+
 async function NotCityAlert(text) {
-  swal({
-    icon: "error",
-    title: `${text}`,
-    showConfirmButton: false,
-  });
+  swal({ icon: "error", title: text, showConfirmButton: false });
 }
+
 const Borrowoptions = [
-  {
-    label: "借",
-    value: "借",
-  },
-  {
-    label: "還",
-    value: "還",
-  },
+  { label: "借", value: "借" },
+  { label: "還", value: "還" }
 ];
 
-let cityoptions = [
-{
-    label: "台北市2.0",
-    value: "台北市2.0",
-    disabled: !canusecitys.includes(2),
-  },
-  {
-    label: "台北市2.0E",
-    value: "台北市2.0E",
-    disabled: !canusecitys.includes(2),
-  },
-/*
-  {
-    label: "新北市",
-    value: "新北市",
-    disabled: !canusecitys.includes(3),
-  },
-*/
-{
-    label: "新北市2.0",
-    value: "新北市2.0",
-    disabled: !canusecitys.includes(3),
-  },
-  {
-    label: "新北市2.0E",
-    value: "新北市2.0E",
-    disabled: !canusecitys.includes(3),
-  },
-/*
-  {
-    label: "桃園市",
-    value: "桃園市",
-    disabled: !canusecitys.includes(4),
-  },
-*/
-  {
-    label: "桃園市2.0",
-    value: "桃園市2.0",
-    disabled: !canusecitys.includes(4),
-  },
-  {
-    label: "桃園市2.0E",
-    value: "桃園市2.0E",
-    disabled: !canusecitys.includes(4),
-  },
-/*
-  {
-    label: "新竹市",
-    value: "新竹市",
-    disabled: !canusecitys.includes(5),
-  },
-*/
-  {
-    label: "新竹市2.0",
-    value: "新竹市2.0",
-    disabled: !canusecitys.includes(5),
-  },
-  {
-    label: "新竹市2.0E",
-    value: "新竹市2.0E",
-    disabled: !canusecitys.includes(5),
-  },
-  {
-    label: "新竹縣2.0",
-    value: "新竹縣2.0",
-    disabled: !canusecitys.includes(6),
-  },
-  {
-    label: "新竹縣2.0E",
-    value: "新竹縣2.0E",
-    disabled: !canusecitys.includes(6),
-  },
-/*
-  {
-    label: "竹科",
-    value: "竹科",
-    disabled: !canusecitys.includes(20),
-  },
-*/
-  {
-    label: "竹科2.0",
-    value: "竹科2.0",
-    disabled: !canusecitys.includes(20),
-  },
-  {
-    label: "竹科2.0E",
-    value: "竹科2.0E",
-    disabled: !canusecitys.includes(20),
-  },
-/*
-  {
-    label: "苗栗縣",
-    value: "苗栗縣",
-    disabled: !canusecitys.includes(7),
-  },
-*/
-  {
-    label: "苗栗縣2.0",
-    value: "苗栗縣2.0",
-    disabled: !canusecitys.includes(7),
-  },
-  {
-    label: "苗栗縣2.0E",
-    value: "苗栗縣2.0E",
-    disabled: !canusecitys.includes(7),
-  },
-/*
-  {
-    label: "台中市",
-    value: "台中市",
-    disabled: !canusecitys.includes(8),
-  },
-*/
-  {
-    label: "台中市2.0",
-    value: "台中市2.0",
-    disabled: !canusecitys.includes(8),
-  },
-  {
-    label: "台中市2.0E",
-    value: "台中市2.0E",
-    disabled: !canusecitys.includes(8),
-  },
-  {
-    label: "嘉義市2.0",
-    value: "嘉義市2.0",
-    disabled: !canusecitys.includes(12),
-  },
-  {
-    label: "嘉義市2.0E",
-    value: "嘉義市2.0E",
-    disabled: !canusecitys.includes(12),
-  },
-  {
-    label: "嘉義縣2.0",
-    value: "嘉義縣2.0",
-    disabled: !canusecitys.includes(13),
-  },
-  {
-    label: "嘉義縣2.0E",
-    value: "嘉義縣2.0E",
-    disabled: !canusecitys.includes(13),
-  },
-  {
-    label: "台南市2.0",
-    value: "台南市2.0",
-    disabled: !canusecitys.includes(14),
-  },
-  {
-    label: "台南市2.0E",
-    value: "台南市2.0E",
-    disabled: !canusecitys.includes(14),
-  },
-  {
-    label: "高雄市2.0",
-    value: "高雄市2.0",
-    disabled: !canusecitys.includes(15),
-  },
-  {
-    label: "高雄市2.0E",
-    value: "高雄市2.0E",
-    disabled: !canusecitys.includes(15),
-  },
-  {
-    label: "屏東縣2.0",
-    value: "屏東縣2.0",
-    disabled: !canusecitys.includes(16),
-  },
-  {
-    label: "屏東縣2.0E",
-    value: "屏東縣2.0E",
-    disabled: !canusecitys.includes(16),
-  },
-  {
-    label: "台東縣2.0",
-    value: "台東縣2.0",
-    disabled: !canusecitys.includes(19),
-  },
-  {
-    label: "台東縣2.0E",
-    value: "台東縣2.0E",
-    disabled: !canusecitys.includes(19),
-  },
-];
+// --- 🚀 城市選單動態生成邏輯 (消滅 100 行手寫代碼) ---
+const cityOptions = computed(() => {
+  const baseCities = [
+    { label: "台北市", auth: 2 }, { label: "新北市", auth: 3 },
+    { label: "桃園市", auth: 4 }, { label: "新竹市", auth: 5 },
+    { label: "新竹縣", auth: 6 }, { label: "竹科", auth: 20 },
+    { label: "苗栗縣", auth: 7 }, { label: "台中市", auth: 8 },
+    { label: "嘉義市", auth: 12 }, { label: "嘉義縣", auth: 13 },
+    { label: "台南市", auth: 14 }, { label: "高雄市", auth: 15 },
+    { label: "屏東縣", auth: 16 }, { label: "台東縣", auth: 19 }
+  ];
 
-(function start() {
-  let arr = [];
-  cityoptions.forEach((item) => {
-    if (item.disabled) {
-      return;
-    } else {
-      arr.push(item);
+  const options = [];
+  baseCities.forEach(c => {
+    if (canusecitys.includes(c.auth)) {
+      options.push({ label: `${c.label}2.0`, value: `${c.label}2.0` });
+      options.push({ label: `${c.label}2.0E`, value: `${c.label}2.0E` });
     }
   });
-  cityoptions = [...arr];
-})();
+  return options;
+});
 
+const setAllCity = () => {
+  city.value = cityOptions.value.map(o => o.value);
+};
+
+// --- 表頭定義 ---
 const columns = [
-  {
-    key: "num1",
-    align: "center",
-    fixed: "left",
-    title: "名次",
-  },
-  {
-    key: "num2",
-    align: "center",
-    title: "借/還 ",
-  },
-  {
-    key: "num3",
-    align: "center",
-    title: "城市",
-  },
-  {
-    key: "num4",
-    align: "center",
-    title: "場站代碼 ",
-  },
-  {
-    key: "num5",
-    align: "center",
-    title: "場站名稱",
-    width: 250,
-  },
-  {
-    key: "num6",
-    align: "center",
-    title: "借車/還車次數",
-  },
+  { key: "num1", align: "center", fixed: "left", title: "名次", width: 70 },
+  { key: "num2", align: "center", title: "借/還", width: 80 },
+  { key: "num3", align: "center", title: "城市", width: 120 },
+  { key: "num4", align: "center", title: "場站代碼", width: 100 },
+  { key: "num5", align: "center", title: "場站名稱", width: 250 },
+  { key: "num6", align: "center", title: "借車/還車次數", width: 120 },
 ];
 
-const setallcity = () => {
-  let arr = [];
-  cityoptions.forEach((item) => {
-    arr.push(item.value);
-  });
-  city.value = arr;
-};
-
 const disablePreviousDate = (ts) => {
-  const date = new Date(ts);
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const now = new Date(); // 获取当前时间
-  const nowyear = now.getFullYear();
-  const nowmonth = now.getMonth() + 1;
-
-  // 禁用2023年6月之前的日期和当前月份之后的日期
-  if (year < 2023 || year > nowyear || (year === nowyear && month >= nowmonth)) {
-    return true;
-  }
-
-  return false;
+  const d = new Date(ts);
+  const now = new Date();
+  const minDate = new Date(2023, 5, 1); // 2023-06
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  return d < minDate || d >= currentMonthStart;
 };
 
-let exceldata = [];
-let excelename = "";
-let excelecolumn = [];
-
-const makeExecl = (nowdata, nowcolumn, name) => {
-  exceldata = [];
-  excelename = "";
-  excelecolumn = [];
-  exceldata = [...nowdata];
-  excelename = name;
-  nowcolumn.forEach((item) => {
-    excelecolumn.push(item.title);
-  });
-};
-
+// --- API 請求 ---
 const getData = async () => {
   try {
     isLoading.value = true;
-    data.value = [];
     const params = {
       dataset_id: "marketing_report",
       table_id: "rent_return_rank_top",
@@ -412,39 +161,39 @@ const getData = async () => {
       date: `${timestamp.value}-01`,
     };
 
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/gcpfun`;
-    const res = await axios.get(url, { params });
-    res.data.data.forEach((element) => {
-      data.value.push({
-        num1: element.rank,
-        num2: element.rent_return,
-        num3: element.city,
-        num4: element.station_no,
-        num5: element.station_name,
-        num6: element.times,
-      });
-    });
+    // 🚀 使用統一抽離的 API
+    const res = await getGcpReport(params);
+    const resData = res.data?.data || [];
 
-    if (dataTable.value.page) {
-      dataTable.value.page(1);
-    }
-    makeExecl(data.value, columns, `借還車場站排名(前幾名)`);
-    isLoading.value = false;
+    // 格式化資料
+    data.value = resData.map(element => ({
+      num1: element.rank ?? "",
+      num2: element.rent_return ?? "",
+      num3: element.city ?? "",
+      num4: element.station_no ?? "",
+      num5: element.station_name ?? "",
+      num6: element.times ?? 0,
+    }));
+
+    // 🚀 更新提供給匯出元件的資料
+    exceldata.value = [...data.value];
+    excelename.value = "借還車場站排名(前幾名)";
+    excelecolumn.value = columns.map(c => c.title);
+    
+    if (dataTable.value?.page) dataTable.value.page(1);
+
   } catch (error) {
-    console.log(error);
+    console.error("API Error:", error);
+    NotCityAlert("查詢失敗，請稍後再試");
+  } finally {
+    isLoading.value = false;
   }
 };
 
 const search = () => {
-  if (Borrow.value.length == 0) {
-    return NotCityAlert("請選擇借/還");
-  } else if (city.value.length == 0) {
-    return NotCityAlert("請選擇城市");
-  } else if (!timestamp.value) {
-    return NotCityAlert("請選擇日期");
-  }
+  if (Borrow.value.length === 0) return NotCityAlert("請選擇借/還");
+  if (city.value.length === 0) return NotCityAlert("請選擇城市");
+  if (!timestamp.value) return NotCityAlert("請選擇日期");
   getData();
 };
 </script>
-
-<style></style>

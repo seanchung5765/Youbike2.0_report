@@ -1,0 +1,309 @@
+const express = require('express');
+const app = express();
+const {BigQuery} = require('@google-cloud/bigquery');
+const bigquery = new BigQuery({
+    projectId: 'upheld-now-268802'
+});
+
+app.get('/users', async (req, res)=>{
+  const query = `select * from YouBikeDB.users`
+  const options = {
+    query
+  }
+  const [ cows ] = await bigquery.query(options)
+  res.status(200).json({
+    message:true,
+    cows
+  })
+})
+
+app.post('/users', async (req,res)=>{
+  const  payload  = req.body
+  const query = `insert into YouBikeDB.users (users_id, name, role_id) values ( '${payload.users_id}', '${payload.name}', ${payload.role_id})`
+    const options = {
+    query
+  }
+  await bigquery.query(options)
+  res.status(200).json({message:true})
+})
+
+app.delete('/users/:id', async(req,res)=>{
+  const id = req.params.id;
+  const query = `delete from YouBikeDB.users where users_id ='${id}'`
+  const options = {
+    query
+  }
+  await bigquery.query(options)
+  res.status(200).json({message:true})
+})
+
+
+
+app.get('/logindata/:account', async (req, res) => {
+  const { account } = req.params;
+  const query = `select city_id from YouBikeDB.user_citys where users_id = '${ account }'`
+  const options = {
+    query
+  }
+  const [city_cows] = await bigquery.query(options)
+  const query2 = `select DISTINCT role_pages.page_id from YouBikeDB.users  inner join YouBikeDB.role_pages  on users.role_id = role_pages.role_id where users.users_id = '${account}' order by page_id`
+  const options2 = {
+    query:query2
+  }
+  const [rows] = await bigquery.query(options2)
+  const user = {
+    ...rows,
+    city_cows
+  }
+  res.status(200).json({user});
+});
+
+app.get('/roles', async (req,res) =>{
+  const query = `select * from YouBikeDB.roles`
+  const options = {
+    query
+  }
+  const [rows] = await bigquery.query(options)
+  
+  res.status(200).json({
+    message:true,
+    data:rows
+    })
+})
+
+app.get('/role/:id', async (req,res) =>{
+  const id = req.params.id;
+  const query = `select t1.users_id, t1.name, t1.role_id, t2.role_name from YouBikeDB.users as t1 left join YouBikeDB.roles as t2 on t1.role_id = t2.role_id where  users_id = '${id}' `
+  const options = {
+    query
+  }
+  const [rows] = await bigquery.query(options)
+  res.status(200).json({
+    message:true,
+    data:rows
+    })
+})
+
+app.patch('/role/:id', async (req,res) => {
+  const id = req.params.id; 
+  const { role } = req.body
+  const query = `update YouBikeDB.users set role_id = ${ role } where users_id = '${id}'`
+  const options = {
+    query
+  }
+  await bigquery.query(options)
+  res.status(200).json({message:true})
+})
+
+
+
+
+
+app.get('/userrole', async (req,res) =>{
+  const query = `select t1.users_id, t1.name, t1.role_id,t2.role_name  from YouBikeDB.users as t1 left join YouBikeDB.roles as t2 on t1.role_id = t2.role_id order by t1.role_id`
+  const options = {
+    query
+  }
+  const [rows] = await bigquery.query(options)
+  
+  res.status(200).json({
+    message:true,
+    data:rows
+    })
+})
+
+
+app.get('/role_pages/:id', async (req,res) => {
+  const id = req.params.id; 
+  const query = `SELECT page_id FROM YouBikeDB.role_pages where role_id = ${ id } order by role_id, page_id`
+  const options = {
+    query
+  }
+  const [rows] = await bigquery.query(options)
+  res.status(200).json({
+    message:true,
+    data:rows
+  })
+})
+
+
+app.get('/pages', async (req,res) => {
+  const query = `select * from YouBikeDB.pages order by page_type, page_id`
+  const options = {
+    query
+  }
+  const [rows] = await bigquery.query(options)
+  res.status(200).json({
+    message:true,
+    data:rows
+  })
+})
+
+
+app.put('/role/:roleid', async (req, res)=>{
+  const id = req.params.roleid;
+  const  payload   = req.body 
+  const query = `delete from YouBikeDB.role_pages where role_id = ${ id }`
+  const options = {
+    query
+  }
+  try {
+    await bigquery.query(options)
+    for(let i=0; i<payload.length;i++){
+      const query = `insert into YouBikeDB.role_pages (role_id, page_id) values (${ payload[i].role_id},${payload[i].page_id})`
+      const options = {
+        query
+      }
+      await bigquery.query(options)
+    }
+    res.status(200).json({message:"修改成功"})
+  }catch(error) {
+    console.log(error)
+  }
+
+
+})
+
+app.delete('/role/:id', async(req, res) =>{
+  const id = req.params.id; 
+  let query = `DELETE FROM YouBikeDB.role_pages WHERE role_id = ${ id }`
+  let options = {
+    query
+  }
+  await bigquery.query(options)
+  query = `delete  from YouBikeDB.roles where  role_id = ${ id }`
+  options = {
+    query
+  }
+  await bigquery.query(options)
+  res.status(200).json({message:"刪除成功"})
+})
+
+
+app.post('/role', async(req, res)=>{
+  const { name, payload } = req.body
+  const randomVariable = Date.now();
+  let query = `insert into YouBikeDB.roles (role_id,role_name) values (${randomVariable},"${name}")`
+  let options = {
+    query
+  }
+  await bigquery.query(options)
+  try {
+    for(let i=0; i<payload.length;i++){
+      query = `insert into YouBikeDB.role_pages (role_id, page_id) values (${randomVariable}, ${payload[i].page_id})`
+      options = {
+        query
+      }
+      await bigquery.query(options)
+    }
+    res.status(200).json({message:true})
+  }catch(error){
+    console.log(error)
+  }
+
+  
+})
+
+app.get('/usercity/:id', async(req, res)=>{
+  const { id } = req.params
+  const query = `select * from YouBikeDB.user_citys where users_id = '${ id }'`
+    const options = {
+    query
+  }
+  const [rows] = await bigquery.query(options)
+  res.status(200).json({
+    message:true,
+    data:rows
+  })
+})
+
+app.get('/citys', async(req, res)=>{
+  const query = `select * from YouBikeDB.citys order by city_id`
+  const options = {
+    query
+  }
+  const [rows] = await bigquery.query(options)
+  res.status(200).json({
+    message:true,
+    data:rows
+  })
+})
+
+
+app.put('/role_citys/:roleid', async(req, res) =>{
+  const id = req.params.roleid; 
+  const  payload  = req.body
+  let query = `delete from YouBikeDB.user_citys where users_id = '${ id }'`
+  const options = {
+    query
+  }
+  await bigquery.query(options)
+  try {
+    for(let i=0; i<payload.length;i++){
+      
+      query = `insert into YouBikeDB.user_citys (users_id, city_id) values ('${ payload[i].users_id }', ${ payload[i].city_id })`
+      const options = {
+        query
+      }
+      await bigquery.query(options)
+    }
+    res.status(200).json({message:true})
+    // await bigquery.query(options)
+    // payload.forEach( async (item)=>{
+    //   query = `insert into YouBikeDB.user_citys (users_id, city_id) values ('${ item.users_id }', ${ item.city_id })`
+      // const options = {
+      //   query
+      // }
+      // await bigquery.query(options)
+    // })
+    // res.status(200).json({message:true})
+  }catch(error){
+    console.log(error)
+  }
+
+})
+
+
+exports.userdbfun = app;
+
+
+
+app.put('/role_citys/:roleid', async (req, res) => {
+  const id = req.params.roleid;
+  const payload = req.body;
+
+  if (!payload || payload.length === 0) {
+    return res.status(200).json({ message: "無資料需更新" });
+  }
+
+  try {
+    // 1. 刪除舊資料 (使用參數化查詢防止 SQL 注入)
+    const deleteQuery = `DELETE FROM YouBikeDB.user_citys WHERE users_id = @userId`;
+    await bigquery.query({
+      query: deleteQuery,
+      params: { userId: id }
+    });
+
+    // 2. 構建批量插入 SQL (一條指令插入所有資料)
+    // 格式: INSERT INTO table (cols) VALUES (v1, v2), (v3, v4)...
+    const valuesStrings = payload.map((_, i) => `(@uId${i}, @cId${i})`).join(', ');
+    const insertQuery = `INSERT INTO YouBikeDB.user_citys (users_id, city_id) VALUES ${valuesStrings}`;
+
+    // 構建參數物件
+    const params = {};
+    payload.forEach((item, i) => {
+      params[`uId${i}`] = item.users_id;
+      params[`cId${i}`] = item.city_id;
+    });
+
+    await bigquery.query({
+      query: insertQuery,
+      params: params
+    });
+
+    res.status(200).json({ message: "修改成功" });
+  } catch (error) {
+    console.error("更新失敗:", error);
+    res.status(500).json({ message: "更新失敗", error: error.message });
+  }
+});

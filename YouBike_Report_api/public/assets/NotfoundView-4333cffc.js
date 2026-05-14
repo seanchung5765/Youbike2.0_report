@@ -1,1 +1,0 @@
-import{o as t,x as e,d as o}from"./index-e8db8460.js";import{N as r}from"./Result-73181e64.js";import"./Warning-f4ecdd88.js";const _={__name:"NotfoundView",setup(s){return(a,u)=>(t(),e(o(r),{status:"404",title:"404 資源不存在",size:"huge"}))}};export{_ as default};

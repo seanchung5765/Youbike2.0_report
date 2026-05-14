@@ -6,193 +6,86 @@
     </div>
 
     <form
-      class="row mx-0"
+      class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
+      style="display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; overflow-x: auto;"
     >
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <label class="col-md-auto col-form-label px-0 px-md-2 fw-bolder">系統別:</label>
-        <div class="col-md-auto px-0">
-          <select
-            class="form-select form-select-sm"
-            aria-label="car"
-            v-model="category"
-            @change="city = '請選擇'"
-          >
-            <option selected disabled>請選擇</option>
-            <option value="daily_report_query1">1.0</option>
-            <option value="daily_report_query2">2.0</option>
-            <option value="daily_report_query2E">2.0E</option>
-          </select>
-        </div>
-      </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <label class="col-md-auto col-form-label px-0 px-md-2 fw-bolder">城市:</label>
-        <div class="col-md-auto px-0">
-          <select class="form-select form-select-sm" aria-label="car" v-model="city">
-            <option selected disabled>請選擇</option>
-            <template v-if="category == 'daily_report_query1'">
-              <option selected value="Taipei" v-if="canusecitys.includes(2)">
-                台北市
-              </option>
-              <option selected value="Newtaipei" v-if="canusecitys.includes(3)">
-                新北市
-              </option>
-              <option selected value="Taoyuan" v-if="canusecitys.includes(4)">
-                桃園市
-              </option>
-              <option selected value="Hsinchu" v-if="canusecitys.includes(5)">
-                新竹市
-              </option>
-              <option selected value="Miaoli" v-if="canusecitys.includes(7)">
-                苗栗縣
-              </option>
-              <option selected value="Taichung" v-if="canusecitys.includes(8)">
-                台中市
-              </option>
-            </template>
-            <template v-else-if="category == 'daily_report_query2'">
-              <option value="Taipei2" v-if="canusecitys.includes(2)">
-                台北市
-              </option>
-              <option value="Newtaipei2" v-if="canusecitys.includes(3)">
-                新北市
-              </option>
-              <option value="Taoyuan2" v-if="canusecitys.includes(4)">
-                桃園市
-              </option>
-              <option value="Hsinchu2" v-if="canusecitys.includes(5)">
-                新竹市
-              </option>
-              <option value="Hsinchu_Country2" v-if="canusecitys.includes(6)">
-                新竹縣
-              </option>
-              <option value="HsinchuScience2" v-if="canusecitys.includes(20)">
-                竹科
-              </option>
-              <option value="Miaoli2" v-if="canusecitys.includes(7)">
-                苗栗縣
-              </option>
-              <option value="Taichung2" v-if="canusecitys.includes(8)">
-                台中市
-              </option>
-              <option value="Chiayi2" v-if="canusecitys.includes(12)">
-                嘉義市
-              </option>
-              <option value="Chiayi_Country2" v-if="canusecitys.includes(13)">
-                嘉義縣
-              </option>
-              <option value="Tainan2" v-if="canusecitys.includes(14)">
-                台南市
-              </option>
-              <option value="Kaohsiung2" v-if="canusecitys.includes(15)">
-                高雄市
-              </option>
-              <option value="Pingtung2" v-if="canusecitys.includes(16)">
-                屏東縣
-              </option>
-              <option value="Taitung2" v-if="canusecitys.includes(19)">
-                台東縣
-              </option>
-            </template>
-            <template v-else-if="category == 'daily_report_query2E'">
-              <option value="Taipei2E" v-if="canusecitys.includes(2)">
-                台北市
-              </option>
-              <option value="Newtaipei2E" v-if="canusecitys.includes(3)">
-                新北市
-              </option>
-              <option value="Taoyuan2E" v-if="canusecitys.includes(4)">
-                桃園市
-              </option>
-              <option value="Hsinchu_Country2E" v-if="canusecitys.includes(6)">
-                新竹縣
-              </option>
-              <option value="HsinchuScience2E" v-if="canusecitys.includes(20)">
-                竹科
-              </option>
-              <option value="Miaoli2E" v-if="canusecitys.includes(7)">
-                苗栗縣
-              </option>
-              <option value="Taichung2E" v-if="canusecitys.includes(8)">
-                台中市
-              </option>
-              <option value="Chiayi2E" v-if="canusecitys.includes(12)">
-                嘉義市
-              </option>
-              <option value="Chiayi_Country2E" v-if="canusecitys.includes(13)">
-                嘉義縣
-              </option>
-              <option value="Tainan2E" v-if="canusecitys.includes(14)">
-                台南市
-              </option>
-              <option value="Kaohsiung2E" v-if="canusecitys.includes(15)">
-                高雄市
-              </option>
-              <option value="Pingtung2E" v-if="canusecitys.includes(16)">
-                屏東縣
-              </option>
-              <option value="Taitung2E" v-if="canusecitys.includes(19)">
-                台東縣
-              </option>
-            </template>
-          </select>
-        </div>
-        <div
-          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
-        >
-          <n-date-picker
-            class="px-0"
-            v-model:formatted-value="starttimestamp"
-            type="date"
-            :actions="null"
-            :input-readonly="true"
-            :update-value-on-close="true"
-            default-time="2023-06-20"
-            placeholder="開始日期"
-            value-format="yyyy-MM-dd"
-            :is-date-disabled="disablestartDate"
-          />
-        </div>
-        <div
-          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
-        >
-          <n-date-picker
-            class="px-0"
-            v-model:formatted-value="endtimestamp"
-            type="date"
-            :actions="null"
-            :input-readonly="true"
-            :is-date-disabled="disableEndDate"
-            :update-value-on-close="true"
-            placeholder="結束日期"
-            value-format="yyyy-MM-dd"
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+        <label class="fw-bolder mb-0" style="white-space: nowrap;">系統別:</label>
+        <div style="width: 120px;">
+          <n-select
+            v-model:value="category"
+            :options="sysOptions"
+            @update:value="city = null"
+            placeholder="請選擇"
           />
         </div>
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
+
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+        <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
+        <div style="width: 140px;">
+          <n-select
+            v-model:value="city"
+            :options="availableCityOptions"
+            placeholder="請選擇"
+          />
+        </div>
+      </div>
+
+      <div style="width: 160px; flex-shrink: 0;">
+        <n-date-picker
+          v-model:formatted-value="starttimestamp"
+          type="date"
+          :actions="null"
+          :input-readonly="true"
+          :update-value-on-close="true"
+          placeholder="開始日期"
+          value-format="yyyy-MM-dd"
+          :is-date-disabled="disablestartDate"
+        />
+      </div>
+
+      <div style="width: 160px; flex-shrink: 0;">
+        <n-date-picker
+          v-model:formatted-value="endtimestamp"
+          type="date"
+          :actions="null"
+          :input-readonly="true"
+          :is-date-disabled="disableEndDate"
+          :update-value-on-close="true"
+          placeholder="結束日期"
+          value-format="yyyy-MM-dd"
+        />
+      </div>
+
+      <div style="display: flex; gap: 8px; flex-shrink: 0;">
         <button
           type="button"
-          class="btn btn-info text-light mt-3 mt-md-0 col-md-auto mx-md-2"
+          class="btn btn-info text-light"
+          style="white-space: nowrap;"
           @click="cleardate"
         >
           清空日期
         </button>
         <button
           type="button"
-          class="btn btn-success text-light mt-3 mt-md-0 col-md-auto mx-md-2"
+          class="btn btn-success text-light"
+          style="white-space: nowrap;"
           @click="search"
         >
           搜尋
         </button>
-
         <output-excel
-          class="btn btn-primary text-light mt-3 mt-md-0 col-md-auto mx-md-2"
+          class="btn btn-primary text-light"
+          style="white-space: nowrap;"
           :data="exceldata"
           :name="excelename"
           :header="excelecolumn"
         />
       </div>
     </form>
+
     <n-data-table
       v-show="'item2' in totaldata[0]"
       ref="dataTable"
@@ -211,198 +104,94 @@
 </template>
 
 <script setup>
-import axios from "axios";
-import { ref, inject } from "vue";
+import { ref, inject, computed } from "vue";
 import { useUserStore } from "../../stores/userdata";
+import { getGcpReport } from "@/api/report"; 
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import OutputExcel from "../../components/OutputExcel.vue";
-import { NDataTable, NDatePicker } from "naive-ui";
+// 🚀 修正 1：補上 NSelect
+import { NDataTable, NDatePicker, NSelect } from "naive-ui"; 
 
-//亮亮模式暗暗模式切換
 const store = useUserStore();
 const canusecitys = store.citys;
 const ischange = inject("ischange");
 const swal = inject("$swal");
-async function NotCityAlert(text) {
-  swal({
-    icon: "error",
-    title: `${text}`,
-    showConfirmButton: false,
-  });
-}
-const starttimestamp = ref();
-const endtimestamp = ref();
-const category = ref("請選擇");
-const city = ref("請選擇");
+
+// --- 狀態管理 ---
+const starttimestamp = ref(null);
+const endtimestamp = ref(null);
+// 🚀 修正 2：n-select 的預設值必須是 null 才能顯示 placeholder
+const category = ref(null); 
+const city = ref(null); 
 const isLoading = ref(false);
 const dataTable = ref(null);
 const totaldata = ref([{}]);
-const columns = ref();
+const columns = ref([]);
 
-let exceldata = [];
-let excelename = "";
-let excelecolumn = [];
+// 🚀 修正 3：必須使用 ref，否則傳遞給 OutputExcel 的資料不會更新
+const exceldata = ref([]);
+const excelename = ref("");
+const excelecolumn = ref([]);
 
-const makeExecl = (nowdata, nowcolumn, name) => {
-  exceldata = [];
-  excelename = "";
-  excelecolumn = [];
-  exceldata = [...nowdata];
-  excelename = name;
-  nowcolumn.forEach((item) => {
-    excelecolumn.push(item.title);
-  });
+// 🚀 修正 4：補上消失的系統別選項
+const sysOptions = ref([
+  { label: '1.0', value: 'daily_report_query1' },
+  { label: '2.0', value: 'daily_report_query2' },
+  { label: '2.0E', value: 'daily_report_query2E' }
+]);
+
+const cityMappingConfig = {
+  daily_report_query1: [
+    { value: "Taipei", auth: 2, label: "台北市" },
+    { value: "Newtaipei", auth: 3, label: "新北市" },
+    { value: "Taoyuan", auth: 4, label: "桃園市" },
+    { value: "Hsinchu", auth: 5, label: "新竹市" },
+    { value: "Miaoli", auth: 7, label: "苗栗縣" },
+    { value: "Taichung", auth: 8, label: "台中市" },
+  ],
+  daily_report_query2: [
+    { value: "Taipei2", auth: 2, label: "台北市" },
+    { value: "Newtaipei2", auth: 3, label: "新北市" },
+    { value: "Taoyuan2", auth: 4, label: "桃園市" },
+    { value: "Hsinchu2", auth: 5, label: "新竹市" },
+    { value: "Hsinchu_Country2", auth: 6, label: "新竹縣" },
+    { value: "HsinchuScience2", auth: 20, label: "竹科" },
+    { value: "Miaoli2", auth: 7, label: "苗栗縣" },
+    { value: "Taichung2", auth: 8, label: "台中市" },
+    { value: "Chiayi2", auth: 12, label: "嘉義市" },
+    { value: "Chiayi_Country2", auth: 13, label: "嘉義縣" },
+    { value: "Tainan2", auth: 14, label: "台南市" },
+    { value: "Kaohsiung2", auth: 15, label: "高雄市" },
+    { value: "Pingtung2", auth: 16, label: "屏東縣" },
+    { value: "Taitung2", auth: 19, label: "台東縣" },
+  ],
+  daily_report_query2E: [
+    { value: "Taipei2E", auth: 2, label: "台北市" },
+    { value: "Newtaipei2E", auth: 3, label: "新北市" },
+    { value: "Taoyuan2E", auth: 4, label: "桃園市" },
+    { value: "Hsinchu_Country2E", auth: 6, label: "新竹縣" },
+    { value: "HsinchuScience2E", auth: 20, label: "竹科" },
+    { value: "Miaoli2E", auth: 7, label: "苗栗縣" },
+    { value: "Taichung2E", auth: 8, label: "台中市" },
+    { value: "Chiayi2E", auth: 12, label: "嘉義市" },
+    { value: "Chiayi_Country2E", auth: 13, label: "嘉義縣" },
+    { value: "Tainan2E", auth: 14, label: "台南市" },
+    { value: "Kaohsiung2E", auth: 15, label: "高雄市" },
+    { value: "Pingtung2E", auth: 16, label: "屏東縣" },
+    { value: "Taitung2E", auth: 19, label: "台東縣" },
+  ],
 };
 
-const makecol = (data) => {
-  const column = [];
-  data.forEach((item, index) => {
-    if (index === 0) {
-      column.push({
-        key: `item${index + 1}`,
-        align: "center",
-        fixed: "left",
-        title: `${item[2]}`,
-        width: 150,
-      });
-    } else {
-      column.push({
-        key: `item${index + 1}`,
-        align: "center",
-        title: `${item[2]}`,
-      });
-    }
-  });
-  columns.value = [...column];
-};
+// 動態過濾城市選項 (因應 category 預設值改為 null，判斷式同步更新)
+const availableCityOptions = computed(() => {
+  if (!category.value || !cityMappingConfig[category.value]) return [];
+  return cityMappingConfig[category.value].filter(option => canusecitys.includes(option.auth));
+});
 
-const disablestartDate = (ts) => {
-  const endDateValue = endtimestamp.value;
-  const currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0); // 设置当前日期的时间为午夜
-
-  if (endDateValue) {
-    const endDate = new Date(endDateValue);
-    endDate.setHours(0, 0, 0, 0); // 设置结束日期的时间为午夜
-
-    const startDate = new Date(endDate);
-    startDate.setDate(startDate.getDate() - 30);
-
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (
-      selectedDate < startDate ||
-      selectedDate > endDate ||
-      selectedDate >= currentDate
-    ) {
-      // 如果选中日期在结束日期之前、结束日期后的31天之外，或是今天及未来的日期，禁用选中日期
-      return true;
-    }
-  } else {
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (selectedDate >= currentDate) {
-      // 如果选中日期是今天及未来的日期，禁用选中日期
-      return true;
-    }
-  }
-};
-
-const disableEndDate = (ts) => {
-  const startDateValue = starttimestamp.value;
-  const currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0); // 设置当前日期的时间为午夜
-
-  if (startDateValue) {
-    const startDate = new Date(startDateValue);
-    startDate.setHours(0, 0, 0, 0); // 设置起始日期的时间为午夜
-
-    if (startDate > currentDate) {
-      // 如果起始日期大于当前日期，禁用所有日期
-      return true;
-    }
-
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 30);
-
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (
-      selectedDate < startDate ||
-      selectedDate > endDate ||
-      selectedDate >= currentDate
-    ) {
-      // 如果选中日期在起始日期之前、起始日期后的31天之外，或是今天及未来的日期，禁用选中日期
-      return true;
-    }
-  } else {
-    const selectedDate = new Date(ts);
-    selectedDate.setHours(0, 0, 0, 0); // 设置选中日期的时间为午夜
-
-    if (selectedDate >= currentDate) {
-      // 如果选中日期是今天及未来的日期，禁用选中日期
-      return true;
-    }
-  }
-};
-
-const getData = async () => {
-  //確認是否為
-
-  const url = `${import.meta.env.VITE_NODE_URL}/isauth/gcpfun`;
-  const params = {
-    dataset_id: "report",
-    table_id: category.value,
-    begin_date: starttimestamp.value,
-    end_date: endtimestamp.value,
-    city: [city.value],
-  };
-  try {
-    isLoading.value = true;
-    const res = await axios.get(url, { params });
-    const resdata = res.data.data;
-    console.log(resdata);
-    makecol(resdata);
-    isLoading.value = false;
-
-    //column長度
-    let columnlength = resdata[0].length - 2;
-    //data長度
-    let fordata = [];
-    for (let i = 1; i <= columnlength; i++) {
-      fordata.push({});
-    }
-    resdata.forEach((items, indexs) => {
-      items.forEach((item, index) => {
-        if (index === 0 || index === 1 || index === 2) {
-          return;
-        }
-        fordata[index - 3][`item${indexs + 1}`] = item;
-      });
-    });
-
-    totaldata.value = [...fordata];
-    makeExecl(totaldata.value, columns.value, "營運管理日報");
-  } catch (error) {
-    console.log(error);
-  }
-};
-
-const search = () => {
-  if (category.value == "請選擇") {
-    return NotCityAlert("請選擇系統");
-  } else if (city.value == "請選擇") {
-    return NotCityAlert("請選擇城市");
-  } else if (starttimestamp.value == null) {
-    return NotCityAlert("請選擇開始日期");
-  } else if (endtimestamp.value == null) {
-    return NotCityAlert("請選擇結束日期");
-  }
-  getData();
+// --- UI 輔助方法 ---
+const NotCityAlert = (text) => {
+  swal({ icon: "error", title: text, showConfirmButton: false, timer: 1500 });
 };
 
 const cleardate = () => {
@@ -410,31 +199,118 @@ const cleardate = () => {
   endtimestamp.value = null;
 };
 
+// --- 日期選擇器限制 ---
+const getMidnightDate = (dateString) => {
+  const date = new Date(dateString);
+  date.setHours(0, 0, 0, 0);
+  return date;
+};
+
+const disablestartDate = (ts) => {
+  const currentDate = getMidnightDate(new Date());
+  const selectedDate = getMidnightDate(ts);
+
+  if (endtimestamp.value) {
+    const endDate = getMidnightDate(endtimestamp.value);
+    const startDateLimit = new Date(endDate);
+    startDateLimit.setDate(startDateLimit.getDate() - 30);
+    return selectedDate < startDateLimit || selectedDate > endDate || selectedDate >= currentDate;
+  }
+  return selectedDate >= currentDate;
+};
+
+const disableEndDate = (ts) => {
+  const currentDate = getMidnightDate(new Date());
+  const selectedDate = getMidnightDate(ts);
+
+  if (starttimestamp.value) {
+    const startDate = getMidnightDate(starttimestamp.value);
+    if (startDate > currentDate) return true;
+
+    const endDateLimit = new Date(startDate);
+    endDateLimit.setDate(endDateLimit.getDate() + 30);
+    return selectedDate < startDate || selectedDate > endDateLimit || selectedDate >= currentDate;
+  }
+  return selectedDate >= currentDate;
+};
+
+// --- 表格與 Excel 生成 ---
+const makeExecl = (nowdata, nowcolumn, name) => {
+  exceldata.value = [...nowdata];
+  excelename.value = name;
+  excelecolumn.value = nowcolumn.map(item => item.title);
+};
+
+const makecol = (data) => {
+  columns.value = data.map((item, index) => ({
+    key: `item${index + 1}`,
+    align: "center",
+    title: item[2],
+    ...(index === 0 ? { fixed: "left", width: 150 } : {})
+  }));
+};
+
+const getData = async () => {
+  const params = {
+    dataset_id: "report",
+    table_id: category.value,
+    begin_date: starttimestamp.value,
+    end_date: endtimestamp.value,
+    city: [city.value],
+  };
+
+  try {
+    isLoading.value = true;
+    const res = await getGcpReport(params);
+    const resdata = res.data.data;
+    
+    makecol(resdata);
+
+    // 資料轉置：略過每個陣列的前三個元素 (index 0, 1, 2)
+    const columnLength = resdata[0].length - 3;
+    const transposedData = Array.from({ length: columnLength }, () => ({}));
+
+    resdata.forEach((items, colIndex) => {
+      items.forEach((item, rowIndex) => {
+        if (rowIndex < 3) return; // 跳過不需要的屬性
+        transposedData[rowIndex - 3][`item${colIndex + 1}`] = item;
+      });
+    });
+
+    totaldata.value = transposedData;
+    makeExecl(totaldata.value, columns.value, "營運管理日報");
+
+  } catch (error) {
+    console.error("獲取日報資料失敗:", error);
+    NotCityAlert("資料載入失敗，請稍後再試");
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const search = () => {
+  // 因應預設值為 null，驗證邏輯同步更新
+  if (!category.value) return NotCityAlert("請選擇系統");
+  if (!city.value) return NotCityAlert("請選擇城市");
+  if (!starttimestamp.value) return NotCityAlert("請選擇開始日期");
+  if (!endtimestamp.value) return NotCityAlert("請選擇結束日期");
+  
+  getData();
+};
+
 const rowClassName = (row) => {
+  const highlightItems = [
+    "場站資訊", "租借資訊", "收入資訊", "妥善率資訊", "票卡資訊", 
+    "各時段使用資訊", "租賃收入明細", "營運資訊", "租賃時間使用資訊", 
+    "調度管理", "騎乘距離分析", "維護管理"
+  ];
+  
   if (
-    row.item1 === "場站資訊" ||
-    row.item1 === "租借資訊" ||
-    row.item1 === "收入資訊" ||
-    row.item1 === "妥善率資訊" ||
-    row.item1 === "票卡資訊" ||
-    row.item1 === "租借資訊" ||
-    row.item1 === "各時段使用資訊" ||
-    row.item1 === "租賃收入明細" ||
+    highlightItems.includes(row.item1) ||
     (row.item1 === "當日租借車次" && !row.item2) ||
-    row.item1 === "營運資訊" ||
-    row.item1 === "租賃時間使用資訊" ||
-    row.item1 === "調度管理" ||
-    row.item1 === "騎乘距離分析" ||
-    row.item1 === "維護管理" ||
     (row.item1 === "註冊票卡淨增加數" && !row.item2 && row.item2 !== 0)
   ) {
     return "too-old";
   }
 };
 </script>
-
-<style scoped>
-:deep(.too-old td) {
-  background-color: rgba(225, 232, 23, 0.75) !important;
-}
-</style>

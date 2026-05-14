@@ -70,14 +70,144 @@
 </template>
 
 <script setup>
-import axios from "axios";
-import { ref, inject } from "vue";
+import { ref, inject, onMounted } from "vue";
+import { NTable, NSpace } from "naive-ui";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import RolepageAlert from "../../components/RolepageAlert.vue";
-import { NTable, NSpace } from "naive-ui";
+import { getRoles, deleteRole, getAllPages, getRolePages } from "@/api/admin";
+
 const swal = inject("$swal");
-async function sureAlert(id, name) {
+
+const isLoading = ref(false);
+const use = ref("");
+const openModel = ref(false);
+const clickid = ref(null);
+const roles = ref([]);
+const data = ref([]);
+const howname = ref("");
+
+// 動態分組函式：不再用數字 (page_type) 寫死，改用分類名稱 (category_name)
+const groupPagesByType = (pagesArray) => {
+  const map = new Map();
+  
+  pagesArray.forEach(page => {
+    // 直接吃資料庫 JOIN 出來的名稱！
+    const catName = page.category_name || "其他功能"; 
+    
+    if (!map.has(catName)) {
+      map.set(catName, { categoryName: catName, items: [] }); 
+    }
+    map.get(catName).items.push(page);
+  });
+  
+  return Array.from(map.values()); 
+};
+
+// --- 共用邏輯：取得並比對角色權限資料 (給查看、編輯共用) ---
+const fetchAndProcessRolePages = async (id) => {
+  const [rolePagesRes, allPagesRes] = await Promise.all([
+    getRolePages(id),
+    getAllPages()
+  ]);
+
+  const canUsePageIds = rolePagesRes.data.data.map(p => p.page_id);
+  const allPages = allPagesRes.data.data;
+
+  // 標記哪些頁面是有權限的
+  const processedPages = allPages.map(page => ({
+    ...page,
+    isselect: canUsePageIds.includes(page.page_id)
+  }));
+
+  // 回傳動態分組後的陣列
+  return groupPagesByType(processedPages);
+};
+
+// -----------------------------------------
+
+// 取得角色列表
+const getdata = async () => {
+  try {
+    isLoading.value = true;
+    const res = await getRoles();
+    roles.value = res.data.data;
+  } catch (error) {
+    console.error("取得角色列表失敗", error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  getdata();
+});
+
+const setmodel = () => {
+  openModel.value = true;
+};
+
+const closemodel = () => {
+  openModel.value = false;
+};
+
+// --- 功能按鈕事件 ---
+
+// 查看角色
+const lookmodel = async (id, name) => {
+  try {
+    isLoading.value = true;
+    howname.value = name;
+    use.value = "look";
+    setmodel();
+    data.value = await fetchAndProcessRolePages(id);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// 編輯角色
+const editmodel = async (id, name) => {
+  try {
+    isLoading.value = true;
+    howname.value = name;
+    clickid.value = id;
+    use.value = "edit";
+    setmodel();
+    data.value = await fetchAndProcessRolePages(id);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// 新增角色
+const addmodel = async () => {
+  try {
+    isLoading.value = true;
+    howname.value = "新增角色";
+    use.value = "add";
+    setmodel();
+    
+    const res = await getAllPages();
+    const allPages = res.data.data.map(page => ({
+      ...page,
+      isselect: false
+    }));
+    
+    data.value = groupPagesByType(allPages);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// 刪除角色與彈窗確認
+const deletemodel = async (id, name) => {
   const payload = {
     title: `確定刪除 "${name}" 嗎`,
     text: "刪除了將不可復原",
@@ -88,153 +218,20 @@ async function sureAlert(id, name) {
     confirmButtonText: "是的",
     cancelButtonText: "取消",
   };
-  const res = await swal(payload);
-  if (res.isConfirmed) {
+  
+  const result = await swal(payload);
+  if (result.isConfirmed) {
     try {
       isLoading.value = true;
-      const url = `${import.meta.env.VITE_NODE_URL}/isauth/role/${id}`;
-      await axios.delete(url);
-      isLoading.value = false;
+      await deleteRole(id); 
+      await getdata(); 
+      swal({ icon: "success", title: "刪除成功", showConfirmButton: false, timer: 1500 });
     } catch (error) {
-      console.log(error);
+      console.error(error);
+      swal({ icon: "error", title: "刪除失敗" });
+    } finally {
+      isLoading.value = false;
     }
   }
-}
-const isLoading = ref(false);
-const use = ref("");
-const openModel = ref(false);
-const clickid = ref(null);
-
-const roles = ref([]);
-const data = ref([]);
-const getdata = async () => {
-  try {
-    isLoading.value = true;
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/roles`;
-    const res = await axios.get(url);
-    roles.value = [...res.data.rows];
-    isLoading.value = false;
-  } catch (error) {
-    console.log(error);
-  }
-};
-
-(async function startfun() {
-  await getdata();
-})();
-
-const howname = ref("");
-const setmodel = () => {
-  openModel.value = true;
-};
-
-const lookmodel = async (id, name) => {
-  try {
-    howname.value = name;
-    setmodel();
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/role_pages/${id}`;
-    const url2 = `${import.meta.env.VITE_NODE_URL}/isauth/pages`;
-    isLoading.value = true;
-    const res = await Promise.all([axios.get(url), axios.get(url2)]);
-    isLoading.value = false;
-    const canusepage = res[0].data.rows;
-    const allpage = res[1].data.rows;
-    const arr = [];
-    canusepage.forEach((element) => {
-      arr.push(element.page_id);
-    });
-
-    allpage.forEach((item) => {
-      if (arr.includes(item["page_id"])) {
-        item["isselect"] = true;
-      } else {
-        item["isselect"] = false;
-      }
-    });
-    const newarr = [];
-    allpage.forEach((item) => {
-      if (newarr.length < item.page_type) {
-        newarr.push([]);
-      }
-      newarr[item.page_type - 1].push(item);
-    });
-    data.value = [...newarr];
-    use.value = "look";
-  } catch (error) {
-    console.log(error);
-  }
-};
-
-const editmodel = async (id, name) => {
-  use.value = "edit";
-  howname.value = name;
-  clickid.value = id;
-  setmodel();
-  const url = `${import.meta.env.VITE_NODE_URL}/isauth/role_pages/${id}`;
-  const url2 = `${import.meta.env.VITE_NODE_URL}/isauth/pages`;
-  isLoading.value = true;
-  const res = await Promise.all([axios.get(url), axios.get(url2)]);
-  isLoading.value = false;
-  const canusepage = res[0].data.rows;
-  const allpage = res[1].data.rows;
-  const arr = [];
-  canusepage.forEach((element) => {
-    arr.push(element.page_id);
-  });
-
-  allpage.forEach((item) => {
-    if (arr.includes(item["page_id"])) {
-      item["isselect"] = true;
-    } else {
-      item["isselect"] = false;
-    }
-  });
-  const newarr = [];
-  allpage.forEach((item) => {
-    if (newarr.length < item.page_type) {
-      newarr.push([]);
-    }
-    newarr[item.page_type - 1].push(item);
-  });
-  data.value = [...newarr];
-};
-
-const deletemodel = async (id, name) => {
-  await sureAlert(id, name);
-  await getdata();
-};
-
-const addmodel = async () => {
-  try {
-    use.value = "add";
-    setmodel();
-    const url = `${import.meta.env.VITE_NODE_URL}/isauth/pages`;
-    isLoading.value = true;
-    const res = await Promise.all([await axios.get(url)]);
-    // const res = await axios.get(url)
-    const datas = res[0].data.rows;
-    isLoading.value = false;
-    const arr = [];
-    datas.forEach((item) => {
-      if (arr.length < item.page_type) {
-        arr.push([]);
-      }
-      arr[item.page_type - 1].push({
-        isselect: false,
-        ...item,
-      });
-    });
-
-    howname.value = "新增角色";
-    data.value = [...arr];
-  } catch (error) {
-    console.log(error);
-  }
-};
-
-const closemodel = async () => {
-  openModel.value = false;
 };
 </script>
-
-<style lang="scss" scoped></style>

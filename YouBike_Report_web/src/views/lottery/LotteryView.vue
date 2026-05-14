@@ -1,527 +1,505 @@
 <template>
-  <div class="container-fluid p-md-4 pt-5" style="background-color: #efefef">
-    <h1 class="fw-bold fs-1 text-center">地區活動抽獎網站</h1>
-    <div class="row"></div>
-    <div class="row mb-md-5">
-      <div class="col-md-6 gx-md-5 mb-3 mb-md-0">
-        <label for="name" class="form-label fw-bolder fs-3"
-          ><i class="bi bi-star-fill me-1" style="color: #18a058"></i
-          >名稱:</label
+  <div class="container-fluid p-md-4 pt-5" style="background-color: #efefef; min-height: 100vh;">
+    <button
+      class="btn btn-outline-secondary position-absolute top-0 end-0 m-3 m-md-4 fw-bold bg-white shadow-sm"
+      @click="toggleFullScreen"
+      style="z-index: 10;"
+    >
+      <i :class="isFullScreen ? 'bi bi-fullscreen-exit' : 'bi bi-fullscreen'"></i>
+      <span class="ms-1 d-none d-sm-inline">{{ isFullScreen ? '退出全螢幕' : '全螢幕' }}</span>
+    </button>
+
+    <h1 class="fw-bold fs-1 text-center mb-5">活動抽獎</h1>
+    <div class="row mb-5 justify-content-center">
+      <div class="col-12 gx-md-5">
+        <div 
+          class="ad-banner-container shadow-sm border rounded-3 bg-white d-flex align-items-center justify-content-center overflow-hidden position-relative"
+          @click="triggerAdUpload"
+          :style="{ cursor: 'pointer', minHeight: '200px' }"
         >
+          <input type="file" ref="adFileInput" class="d-none" accept="image/*" @change="handleAdUpload" />
+
+          <img v-if="adImageUrl" :src="adImageUrl" class="img-fluid w-100 h-100 ad-image" alt="廣告看板" />
+
+          <div v-else class="text-center text-muted p-5">
+            <i class="bi bi-image fs-1"></i>
+            <p class="mb-0 fw-bold">點擊上傳廣告橫幅 (建議尺寸: 1920x600)</p>
+          </div>
+
+          <div v-if="adImageUrl" class="ad-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center">
+             <span class="badge bg-dark bg-opacity-50 p-2"><i class="bi bi-camera-fill me-1"></i>更換圖片</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row mb-md-4">
+      <div class="col-md-6 gx-md-5 mb-3 mb-md-0">
+        <label for="name" class="form-label fw-bolder fs-3">
+          <i class="bi bi-star-fill me-1" style="color: #18a058"></i>名稱:
+        </label>
         <input
-          type="email"
+          type="text"
           v-model="name"
-          class="form-control"
+          class="form-control form-control-lg"
           id="name"
-          placeholder="請輸入名稱"
+          placeholder="請輸入抽獎活動名稱"
         />
       </div>
+
       <div class="col-md-6 gx-md-5 mb-3 mb-md-0">
         <div class="row">
-          <div class="col-12">
-            <label for="gift" class="form-label fw-bolder fs-3"
-              ><i class="bi bi-sliders me-1" style="color: #18a058"></i
-              >獎品設定:</label
-            >
+          <div class="col-12 mb-2">
+            <label for="gift" class="form-label fw-bolder fs-3">
+              <i class="bi bi-sliders me-1" style="color: #18a058"></i>獎品設定:
+            </label>
           </div>
-          <div
-            class="mb-2 col-lg-6 col-xxl-4"
-            v-for="j in giftsetarr"
-            :key="j.key"
-          >
-            <div class="input-group">
+          
+          <div class="mb-2 col-12 col-xl-10" v-for="(j, index) in giftsetarr" :key="j.key">
+            <div class="input-group input-group-lg shadow-sm">
+              <span class="input-group-text text-white fw-bold" style="background-color: #18a058;">{{ index + 1 }}</span>
               <input
-                type="input"
+                type="text"
                 class="form-control"
                 v-model="j.name"
-                placeholder="請輸入名稱"
+                placeholder="請輸入獎項名稱 (例: 頭獎)"
               />
-              <select class="form-select" v-model="j.value">
-                <option v-for="i in 700" :key="`${i}12`" :value="i">
-                  {{ i }}
-                </option>
-              </select>
+              <input 
+                type="number" 
+                class="form-control" 
+                style="flex: 0 0 100px;" 
+                v-model.number="j.value" 
+                min="1" 
+                placeholder="人數" 
+              />
             </div>
           </div>
-          <div class="col-auto">
-            <button
-              type="button"
-              class="btn btn-outline-primary"
-              @click="addgiftsetinpust"
-            >
-              新增
+          
+          <div class="col-12 mt-2 d-flex gap-2">
+            <button type="button" class="btn btn-outline-primary fw-bold" @click="addgiftsetinpust">
+              <i class="bi bi-plus-lg"></i> 新增獎項
             </button>
-          </div>
-          <div class="col-auto" v-show="giftsetarr.length > 1">
-            <button
-              type="button"
-              class="btn btn-outline-danger"
-              @click="cutgiftsetinpust"
-            >
-              刪除
+            <button type="button" class="btn btn-outline-danger fw-bold" v-show="giftsetarr.length > 1" @click="cutgiftsetinpust">
+              <i class="bi bi-trash"></i> 刪除
             </button>
           </div>
         </div>
       </div>
     </div>
+
     <div class="row">
-      <div class="mb-md-5 gx-md-5 mb-3 mb-md-0">
-        <div class="row">
-          <div class="col-auto">
-            <label for="userlist" class="form-label fw-bolder fs-3"
-              ><i class="bi bi-person-fill-up me-1" style="color: #18a058"></i
-              >抽獎名單:</label
-            >
-          </div>
-          <div class="col-auto">
-            <input
-              type="file"
-              id="excelFileInput"
-              @change="Excelhandler"
-              ref="file"
-              class="form-control"
-            />
-          </div>
+      <div class="col-12 gx-md-5 mb-3 mb-md-4">
+        <div class="d-flex align-items-center mb-3">
+          <label for="userlist" class="form-label fw-bolder fs-3 mb-0 me-3">
+            <i class="bi bi-person-fill-up me-1" style="color: #18a058"></i>抽獎名單:
+          </label>
+          <input
+            type="file"
+            id="excelFileInput"
+            @change="Excelhandler"
+            ref="file"
+            class="form-control form-control-lg w-auto"
+            accept=".xlsx, .xls, .csv"
+          />
         </div>
-        <textarea
-          class="form-control"
-          id="userlist"
-          rows="10"
-          v-model="list1"
-          readonly
-          placeholder="得獎限制: 手機號碼和外觀卡號均不能重複
-EXCEL格式需填寫 <手機號碼> <外觀卡號> <合計票數>
-                "
-        ></textarea>
-      </div>
-      <div class="row">
-        <div class="gx-md-5 mb-3 mb-md-0 text-center">
-          <button
-            type="button"
-            class="btn btn-lg btn-danger fw-bold px-4 me-3 mb-3 mb-md-0"
-            @click="startlottery"
-          >
-            抽獎
-          </button>
-        </div>
-      </div>
-      <div class="gx-md-5 mb-3 mb-md-0" v-if="giftlist">
-        <label for="giftlist" class="form-label fw-bolder fs-3"
-          ><i class="bi bi-cash-coin me-1" style="color: #18a058"></i
-          >中獎結果:</label
+        
+        <div 
+          v-if="exceldata.length > 0" 
+          class="table-responsive bg-white border border-2 rounded-3 shadow-sm" 
+          style="max-height: 400px; overflow-y: auto;"
         >
-        <textarea
-          class="form-control"
-          readonly
-          id="giftlist"
-          rows="10"
-          v-model="giftlist"
-        ></textarea>
-        <div class="gx-md-5 mb-3 mb-md-0 text-center mt-5">
+          <table class="table table-striped table-hover table-sm mb-0 text-nowrap align-middle">
+            <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
+              <tr>
+                <th class="px-3 py-2" v-for="(header, index) in exceldata[0]" :key="'h'+index">
+                  {{ header }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, rowIndex) in excelPreviewList" :key="'r'+rowIndex">
+                <td class="px-3" v-for="(cell, cellIndex) in row" :key="'c'+cellIndex">
+                  {{ cell }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="exceldata.length > 1" class="mt-3 d-flex justify-content-end">
+          <div class="bg-dark text-white px-4 py-2 rounded-pill shadow-sm fw-bold">
+            <i class="bi bi-people-fill me-2 text-warning"></i>
+            符合抽獎資格總人數：
+            <span class="fs-4 text-warning">{{ totalParticipants.toLocaleString() }}</span>
+            <span class="ms-1">人</span>
+          </div>
+        </div>
+
+        <div 
+          v-else
+          class="form-control bg-light d-flex align-items-center justify-content-center text-muted shadow-sm" 
+          style="min-height: 200px; border: 2px dashed #ccc;"
+        >
+          <div class="text-center">
+            <i class="bi bi-file-earmark-spreadsheet fs-1 mb-2"></i>
+            <p class="mb-1 fs-5 fw-bold text-dark">尚未上傳名單</p>
+            <p class="mb-1">得獎限制: 手機號碼和外觀卡號均不能重複</p>
+            <p class="mb-0 text-danger">EXCEL 格式需填寫：&lt;手機號碼&gt; &lt;外觀卡號&gt; &lt;合計票數&gt;</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 gx-md-5 mb-4 text-center">
+        <button
+          type="button"
+          class="btn btn-lg btn-danger fw-bold px-5 py-3 shadow"
+          style="font-size: 1.25rem; letter-spacing: 2px;"
+          @click="startlottery"
+        >
+          <i class="bi bi-magic me-1"></i> 開始抽獎
+        </button>
+      </div>
+
+      <div class="col-12 gx-md-5 mb-5" v-if="winnermantotal.length > 0">
+        <label class="form-label fw-bolder fs-3">
+          <i class="bi bi-cash-coin me-1" style="color: #18a058"></i>中獎結果:
+        </label>
+        
+        <div class="table-responsive bg-white border border-success border-2 rounded-3 shadow">
+          <table class="table table-hover table-bordered mb-0 text-nowrap align-middle">
+            <thead class="table-success" style="position: sticky; top: 0; z-index: 1;">
+              <tr>
+                <th class="text-center px-3 py-3" style="width: 150px; font-size: 1.1rem;">🏆 中獎獎項</th>
+                <th class="px-3 py-3" v-for="(header, index) in exceldata[0]" :key="'rh'+index">
+                  {{ header }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(winner, index) in winnermantotal" :key="'w'+index">
+                <td class="text-center fw-bold text-danger bg-light fs-5">
+                  {{ winner.name }}
+                </td>
+                <td class="px-3" v-for="(cell, cellIndex) in winner.value" :key="'wc'+cellIndex">
+                  {{ cell }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="text-center mt-5">
           <button
             type="button"
-            class="btn btn-lg btn-primary fw-bold px-4 me-3"
+            class="btn btn-lg btn-success fw-bold px-5 shadow"
             @click="sebmitexcel"
           >
-            導出Excel
+            <i class="bi bi-file-earmark-excel me-1"></i> 導出 Excel
           </button>
         </div>
       </div>
     </div>
+
     <n-modal v-model:show="showModal" :mask-closable="false">
-      <Vue3Lottie
-        :animationData="LottieJson"
-        :height="400"
-        :width="400"
-        :speed="1"
-      ></Vue3Lottie>
+      <div class="text-center">
+        <Vue3Lottie
+          :animationData="LottieJson"
+          :height="400"
+          :width="400"
+          :speed="1"
+        ></Vue3Lottie>
+        <h3 class="text-white mt-3 fw-bold" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">系統抽獎中...</h3>
+      </div>
     </n-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, inject } from "vue";
+import { ref, inject, computed, onMounted, onUnmounted } from "vue";
 import { NModal } from "naive-ui";
-const showModal = ref(false);
-const name = ref();
-const list1 = ref();
-const giftlist = ref();
-const winnermantotal = ref([]);
-import axios from "axios";
-import CryptoJS from "crypto-js";
-
-import random from "random";
-//lottie
 import { Vue3Lottie } from "vue3-lottie";
-import LottieJson from "/public/Animation - 1690257463274.json";
-// lottie end
-
-const swal = inject("$swal");
-const file = ref();
 import * as XLSX from "xlsx";
-import { ConstructOutline } from "@vicons/ionicons5";
-async function NotAlert(text) {
-  swal({
-    icon: "error",
-    title: `${text}`,
-    showConfirmButton: false,
-  });
-}
+ import LottieJson from '@/assets/Animation - 1690257463274.json';
 
-let inputexceltitle = null;
+// --- 狀態與變數管理 ---
+const swal = inject("$swal");
+const isFullScreen = ref(false);
+const showModal = ref(false);
+const adImageUrl = ref(null);
+const adFileInput = ref(null);
+const file = ref();
+const name = ref("");
+const winnermantotal = ref([]);
 const exceldata = ref([]);
-const Excelhandler = (event) => {
-  const files = event.target.files[0];
+let inputexceltitle = null;
+
+const toggleFullScreen = () => {
+  if (!document.fullscreenElement) {
+    // 進入全螢幕 (讓整個網頁主體放大)
+    document.documentElement.requestFullscreen().catch(err => {
+      NotAlert(`無法進入全螢幕: ${err.message}`);
+    });
+  } else {
+    // 退出全螢幕
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+  }
+};
+
+// 監聽事件：如果使用者按 Esc 退出，狀態也要跟著切換
+const handleFullscreenChange = () => {
+  isFullScreen.value = !!document.fullscreenElement;
+};
+
+const triggerAdUpload = () => {
+  adFileInput.value.click();
+};
+
+const handleAdUpload = (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
   const reader = new FileReader();
-  // 以二进制格式读取文件
-  reader.readAsArrayBuffer(files);
-
   reader.onload = (e) => {
-    const data = e.target.result;
-    const workbook = XLSX.read(data, {
-      type: "binary",
-      codepage: 65001,
-      raw: true,
-    });
-
-    // 获取第一个工作表
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-
-    // 解析 Excel 数据为值数组，忽略空白行
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-      header: 1,
-      blankrows: false,
-    });
-    exceldata.value = [...jsonData];
-
-    let text = "";
-    jsonData.forEach((item, index) => {
-      if (index === 0) {
-        inputexceltitle = item;
-      }
-      text += `${item}\n`;
-    });
-    list1.value = text;
+    adImageUrl.value = e.target.result;
   };
+  reader.readAsDataURL(file);
 };
 
-// 函數：解密加密字符串並返回 JavaScript 物件
-function decryptString(encryptedString, secretKey) {
-  // 解密加密字符串
-  var decrypted = CryptoJS.AES.decrypt(encryptedString, secretKey);
+onMounted(() => {
+  document.addEventListener("fullscreenchange", handleFullscreenChange);
+});
 
-  // 將解密的結果轉換回 JSON 物件
-  var decryptedJsonString = decrypted.toString(CryptoJS.enc.Utf8);
-  return JSON.parse(decryptedJsonString);
-}
+onUnmounted(() => {
+  document.removeEventListener("fullscreenchange", handleFullscreenChange);
+});
 
-//抓取黑名單
-const getblacklist = async () => {
-  const url = `${import.meta.env.VITE_NODE_URL}/lottery/blacklist`;
-  const res = await axios.get(url);
-  const resdata = res.data.data;
-  let arr = {
-    mobile: [],
-    cardno: [],
-  };
-  
-  resdata.forEach((item) => {
-    arr.mobile.push(
-      decryptString(item.mobile, import.meta.env.VITE_CryptoJS_PASSWORD)
-    );
-    arr.cardno.push(item.cardno);
-  });
-  return arr;
+const giftsetarr = ref([{ name: null, value: 1, key: 1 }]);
+
+// 🚀 動態預覽清單 (略過第一行的表頭)
+const excelPreviewList = computed(() => {
+  return exceldata.value.length > 1 ? exceldata.value.slice(1) : [];
+});
+
+// --- UI 輔助方法 ---
+const NotAlert = (text) => {
+  swal({ icon: "error", title: text, showConfirmButton: false, timer: 2500 });
 };
-
-const giftsetarr = ref([
-  {
-    name: null,
-    value: 1,
-    key: 1,
-  },
-]);
 
 const addgiftsetinpust = () => {
-  const length = giftsetarr.value.length + 1;
-  giftsetarr.value.push({
-    name: null,
-    value: 1,
-    key: length,
-  });
+  giftsetarr.value.push({ name: null, value: 1, key: giftsetarr.value.length + 1 });
 };
 
 const cutgiftsetinpust = () => {
-  if (giftsetarr.value.length > 1) {
-    giftsetarr.value.pop();
-  }
+  if (giftsetarr.value.length > 1) giftsetarr.value.pop();
 };
 
-const submit = async () => {
-  //黑名單
-  const blacklist = await getblacklist();
-  //獎品池
-  let giftpool = [];
-  winnermantotal.value = [];
-  //獲取次數第幾欄
-  const ticketnum = exceldata.value[0].indexOf("合計票數");
+const totalParticipants = computed(() => {
+  return exceldata.value.length > 1 ? exceldata.value.length - 1 : 0;
+});
 
-  exceldata.value.forEach((items, index) => {
-    if (index === 0) {
-      return;
-    }
-	
-	
-	
-    for (let i = 1; i <= items[ticketnum]; i++) {
-      giftpool.push(items);
-    }
-  });
+// --- Excel 讀取與解析 ---
+const Excelhandler = (event) => {
+  const files = event.target.files[0];
+  if (!files) return;
+  
+  const reader = new FileReader();
+  reader.readAsArrayBuffer(files);
 
-  let setdatapool = [];
-  giftsetarr.value.forEach((items) => {
-    for (let i = 1; i <= items.value; i++) {
-      setdatapool.push(items.name);
-    }
-  });
+  reader.onload = (e) => {
+    const workbook = XLSX.read(e.target.result, { type: "binary", codepage: 65001, raw: true });
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
+    
+    exceldata.value = [...jsonData];
+    inputexceltitle = jsonData[0]; // 記住第一行的標題
+  };
+};
 
-  if (giftpool.length < setdatapool.length) {
-    return NotAlert("抽獎人小於獎品");
+// --- 洗牌演算法 (Fisher-Yates Shuffle) ---
+const shuffleArray = (array) => {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
+  return arr;
+};
 
-  //獲取次數第幾欄 ,相同手機跟外觀卡號不能中獎
+// --- 核心抽獎邏輯 ---
+const submit = async () => {
+  const ticketnum = exceldata.value[0].indexOf("合計票數");
   const phonenum = exceldata.value[0].indexOf("手機號碼");
   const numbernum = exceldata.value[0].indexOf("外觀卡號");
 
-  // console.log(giftpool, blacklist);
-  //excel格式錯誤匯出彈跳視窗
   if (ticketnum === -1 || phonenum === -1 || numbernum === -1) {
-    return NotAlert("excel格式錯誤");
+    return NotAlert("EXCEL 格式錯誤：請確認包含手機號碼、外觀卡號、合計票數");
   }
-  // console.log(giftpool, giftpool.length);
-  //最終得獎人
-  let winnerman = [];
-  //黑名單錯誤次數
-  let blacklistNum = 0;
-  while (winnerman.length !== setdatapool.length) {
-    let ispush = true;
-    //按照人數隨機random
-    const randomnum = random.int(0, giftpool.length - 1);
-    //console.log("randomnum=" + randomnum, "numbernum=" + numbernum, "phonenum=" + phonenum, giftpool.length);
-    console.log(blacklist, giftpool, randomnum, numbernum);
-    //黑名單檢查
-    console.log(`giftpool[${randomnum}]=` + giftpool[randomnum])
-    console.log(`giftpool[${randomnum}][${numbernum}]=` + giftpool[randomnum][numbernum])
 
-    if (blacklist.cardno.indexOf(giftpool[randomnum][numbernum].toString()) !== -1 ||
-        blacklist.mobile.indexOf(giftpool[randomnum][phonenum].toString()) !== -1) {
-      ispush = false;
+  // 1. 展平獎品需求 (例如: ['頭獎', '頭獎', '普獎'])
+  const prizesToDraw = giftsetarr.value.flatMap(gift => Array(Number(gift.value)).fill(gift.name));
 
-      //如果重複抽到100次則出錯
-      blacklistNum++;
-      console.log(blacklistNum);
-      if (blacklistNum === 100) {
-        return NotAlert("抽獎失敗");
-      }
+  // 2. 建立抽獎池：依據「合計票數」放入對應數量的籤
+  let pool = [];
+  exceldata.value.slice(1).forEach((row) => {
+    const tickets = parseInt(row[ticketnum]) || 0;
+    for (let i = 0; i < tickets; i++) {
+      pool.push(row);
     }
-    else {
-      //如果沒抽到黑名單次數歸零
-      blacklistNum = 0;
-    }
+  });
 
-    //把資料轉字串
-    winnerman.forEach((item) => {
-      //外觀卡號和手機號碼如果一樣就不能抽
-      if (item[phonenum] === giftpool[randomnum][phonenum] ||
-          item[numbernum] === giftpool[randomnum][numbernum]) {
-        ispush = false;
-      }
-    });
+  // 3. 防呆檢查：獨立人數是否足夠抽獎
+  const uniqueUsers = new Set(pool.map(item => String(item[phonenum]))).size;
+  if (uniqueUsers < prizesToDraw.length) {
+    return NotAlert(`抽獎人數不足：符合資格的不重複人數(${uniqueUsers}) 小於 獎品總數(${prizesToDraw.length})`);
+  }
 
-    if (ispush) {
-      winnerman.push(giftpool[randomnum]);
+  // 4. 徹底洗牌，打亂所有籤
+  pool = shuffleArray(pool);
+
+  const winners = [];
+  const wonPhones = new Set();
+  const wonCards = new Set();
+
+  // 5. 依序發獎，使用 Set 瞬間判斷是否重複中獎
+  for (const candidate of pool) {
+    if (winners.length === prizesToDraw.length) break;
+
+    const phone = String(candidate[phonenum]);
+    const card = String(candidate[numbernum]);
+
+    // O(1) 瞬間檢查：如果沒中過獎，就給獎品並記錄
+    if (!wonPhones.has(phone) && !wonCards.has(card)) {
+      winners.push(candidate);
+      wonPhones.add(phone);
+      wonCards.add(card);
     }
   }
 
-
-
-
-
-  winnerman.forEach((item, index) => {
-    winnermantotal.value.push({
-      name: setdatapool[index],
-      value: winnerman[index],
-    });
-  });
-
-  let text = `${name.value}
-========================================
-`;
-  winnermantotal.value.forEach((item, index) => {
-    if (index === 0) {
-      text += `${item.name}\n${item.value}`;
-    } else if (item["name"] === winnermantotal.value[index - 1]["name"]) {
-      text += `\n${item.name}\n${item.value}`;
-    } else {
-      text += `\n\n\n${item.name}\n${item.value}`;
-    }
-  });
-  giftlist.value = text;
+  // 6. 整理得獎清單與渲染表格 (不再拼接純文字)
+  winnermantotal.value = winners.map((winner, index) => ({
+    name: prizesToDraw[index],
+    value: winner,
+  }));
 };
 
 const startlottery = () => {
-  if (!name.value) {
-    return NotAlert(`請輸入名稱`);
-  } else if (!giftsetarr.value[0].name) {
-    return NotAlert("請輸入獎品設定");
-  } else if (exceldata.value.length < 1) {
-    return NotAlert("抽獎名單不能為空");
-  }
+  if (!name.value) return NotAlert("請輸入抽獎活動名稱");
+  if (!giftsetarr.value[0].name) return NotAlert("請輸入至少一個獎品名稱");
+  if (exceldata.value.length <= 1) return NotAlert("抽獎名單不能為空");
 
   showModal.value = true;
-  // 延迟五秒执行第二个函数
-  setTimeout(function () {
+  setTimeout(() => {
     submit();
     showModal.value = false;
-  }, 4000);
+  }, 3500); // 讓動畫跑 3.5 秒
 };
 
-//如果一串數字有超過5位數 只取前4位數就好
+// --- 工具：場站轉換與區域判斷 ---
+const limitToFiveDigits = (val) => {
+  const s = String(val);
+  return s.length > 5 ? parseInt(s.substring(0, 4)) : (parseInt(val) || 0);
+};
 
-function limitToFiveDigits(number) {
-  if (typeof number !== "number") {
-    throw new Error("Input must be a number");
-  }
-
-  const numStr = number.toString();
-  if (numStr.length > 5) {
-    return parseInt(numStr.substring(0, 4));
-  } else {
-    return number;
-  }
-}
-
-const sebmitexcel = () => {
-  let giftobj = [];
-  //整理好禮物表
-  winnermantotal.value.forEach((item, index) => {
-    if (index === 0) {
-      giftobj.push([]);
-      giftobj[0].push(item);
-    } else {
-      if (
-        winnermantotal.value[index]["name"] ===
-        winnermantotal.value[index - 1]["name"]
-      ) {
-        giftobj[giftobj.length - 1].push(item);
-      } else {
-        giftobj.push([]);
-        giftobj[giftobj.length - 1].push(item);
-      }
-    }
-  });
-
-  //導出excel
-  const workbook = XLSX.utils.book_new();
-  giftobj.forEach((items) => {
-    let arr = [];
-    //表的標題
-    arr.push(inputexceltitle);
-    items.forEach((item) => {
-      arr.push(item.value);
-    });
-    const worksheet = XLSX.utils.aoa_to_sheet(arr);
-    XLSX.utils.book_append_sheet(workbook, worksheet, `${items[0]["name"]}`);
-  });
-
-  const citysortobj = {
-    台北: [],
-    "台北2.0": [],
-    新北: [],
-    "新北2.0": [],
-    桃園: [],
-    "桃園2.0": [],
-    竹市: [],
-    "竹市2.0": [],
-    "竹縣2.0": [],
-    竹科: [],
-    "竹科2.0": [],
-    苗栗: [],
-    "苗栗2.0": [],
-    台中: [],
-    "台中2.0": [],
-    彰化: [],
-    "彰化2.0": [],
-    "嘉義2.0": [],
-    "台南2.0": [],
-    "高雄2.0": [],
-    "屏東2.0": [],
+// 🚀 完整官方名稱的城市對照表 (乾淨俐落)
+const getCityName = (num) => {
+  const specificMap = {
+    5001: "台北市", 5002: "新北市", 5003: "桃園市", 5004: "新竹市",
+    5005: "新竹縣", 5006: "台中市", 5007: "苗栗縣", 5008: "彰化縣",
+    5010: "嘉義市", 5011: "嘉義縣", 5012: "高雄市", 5013: "台南市", 
+    5014: "屏東縣", 5082: "新竹科學園區"
   };
-  //製作 城市分類
+  return specificMap[num] || null;
+};
+
+// --- 匯出 Excel ---
+const sebmitexcel = () => {
+  const workbook = XLSX.utils.book_new();
+  
+  // 依照「獎品名稱」分組
+  const groupedWinners = winnermantotal.value.reduce((acc, curr) => {
+    if (!acc[curr.name]) acc[curr.name] = [];
+    acc[curr.name].push(curr.value);
+    return acc;
+  }, {});
+
+  // 1. 產出各獎項的 Worksheet
+  Object.entries(groupedWinners).forEach(([prizeName, winners]) => {
+    const sheetData = [inputexceltitle];
+    winners.forEach(winner => sheetData.push(winner));
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(sheetData), prizeName);
+  });
+
+  // 2. 產出城市分類的 Worksheet (如果有借車場站代號)
   const sendcarnum = exceldata.value[0].indexOf("借車場站代號");
-  //如果有出現借車場站代號
   if (sendcarnum > 0) {
+    const cityKeys = [
+      "台北市", "新北市", "桃園市", "新竹市", "新竹縣", "新竹科學園區",
+      "苗栗縣", "台中市", "彰化縣", "嘉義市", "嘉義縣", "台南市", 
+      "高雄市", "屏東縣"
+    ];
+    
+    const citySummary = Object.fromEntries(cityKeys.map(k => [k, 0]));
+
     winnermantotal.value.forEach((item) => {
-      const num = limitToFiveDigits(parseInt(item.value[sendcarnum]));
-      if (num >= 1 && num <= 900) {
-        citysortobj["台北"].push(num);
-      } else if (num >= 1001 && num <= 1900) {
-        citysortobj["新北"].push(num);
-      } else if (num >= 2001 && num <= 2900) {
-        citysortobj["桃園"].push(num);
-      } else if (num >= 3001 && num <= 3900) {
-        citysortobj["台中"].push(num);
-      } else if (num >= 6101 && num <= 6290) {
-        citysortobj["竹市"].push(num);
-      } else if (num >= 6601 && num <= 6990) {
-        citysortobj["苗栗"].push(num);
-      } else if (num >= 7001 && num <= 7290) {
-        citysortobj["彰化"].push(num);
-      } else if (num >= 9601 && num <= 9696) {
-        citysortobj["竹科"].push(num);
-      } else if (num == 5001) {
-        citysortobj["台北2.0"].push(num);
-      } else if (num == 5002) {
-        citysortobj["新北2.0"].push(num);
-      } else if (num == 5003) {
-        citysortobj["桃園2.0"].push(num);
-      } else if (num == 5004) {
-        citysortobj["竹市2.0"].push(num);
-      } else if (num == 5005) {
-        citysortobj["竹縣2.0"].push(num);
-      } else if (num == 5006) {
-        citysortobj["台中2.0"].push(num);
-      } else if (num == 5007) {
-        citysortobj["苗栗2.0"].push(num);
-      } else if (num == 5008) {
-        citysortobj["彰化2.0"].push(num);
-      } else if (num == 5010) {
-        citysortobj["嘉義2.0"].push(num);
-      } else if (num == 5012) {
-        citysortobj["高雄2.0"].push(num);
-      } else if (num == 5013) {
-        citysortobj["台南2.0"].push(num);
-      } else if (num == 5014) {
-        citysortobj["屏東2.0"].push(num);
-      } else if (num == 5082) {
-        citysortobj["竹科2.0"].push(num);
+      const num = limitToFiveDigits(item.value[sendcarnum]);
+      const city = getCityName(num);
+      if (city && citySummary[city] !== undefined) {
+        citySummary[city]++;
       }
     });
 
-    const arr = [["贈品區域", "配送數量"]];
-    for (const key in citysortobj) {
-      let item = [key, citysortobj[key].length];
-      arr.push(item);
-    }
-    const worksheet = XLSX.utils.aoa_to_sheet(arr);
-    XLSX.utils.book_append_sheet(workbook, worksheet, "城市分類");
+    const cityArr = [["贈品區域", "配送數量"]];
+    cityKeys.forEach(key => cityArr.push([key, citySummary[key]]));
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(cityArr), "城市分類");
   }
 
-  const outputFileName = `${name.value}.xlsx`;
-  const outputFileType = "xlsx";
-  XLSX.writeFile(workbook, outputFileName, { bookType: outputFileType });
+  XLSX.writeFile(workbook, `${name.value}.xlsx`, { bookType: "xlsx" });
 };
 </script>
 
-<style lang="scss" scoped></style>
+<style scoped>
+/* 廣告看板容器比例 */
+.ad-banner-container {
+  /* 設定最大高度，避免 600px 在小螢幕太佔空間 */
+  max-height: 400px; 
+  aspect-ratio: 1920 / 600; /* 強制維持 3.2:1 的比例 */
+  transition: all 0.3s ease;
+}
+
+.ad-banner-container:hover {
+  border-color: #18a058 !important;
+  background-color: #f8fdfa !important;
+}
+
+.ad-image {
+  object-fit: cover; /* 關鍵：確保圖片填滿容器且不變形 */
+}
+
+.ad-overlay {
+  opacity: 0;
+  transition: opacity 0.3s;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.ad-banner-container:hover .ad-overlay {
+  opacity: 1;
+}
+
+/* 讓表格在滾動時，背景色不要變透明 */
+th {
+  background-clip: padding-box;
+}
+/* 自定義滾動條美化 */
+.table-responsive::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 4px;
+}
+.table-responsive::-webkit-scrollbar-track {
+  background-color: #f1f1f1;
+}
+</style>

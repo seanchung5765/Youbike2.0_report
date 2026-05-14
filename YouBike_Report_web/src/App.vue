@@ -1,6 +1,7 @@
+<!--負責總畫面排版-->
 <script setup>
 import { RouterView } from "vue-router";
-import FrontLayout from "./components/FrontLayout.vue";
+import FrontLayout from "./layouts/FrontLayout.vue";
 import { NConfigProvider } from "naive-ui";
 import { zhTW, dateZhTW } from "naive-ui";
 </script>

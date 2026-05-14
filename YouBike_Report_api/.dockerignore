@@ -1,11 +1,20 @@
-**/.git
-**/.DS_Store
-**/node_modules
-**/.env
-*.log
-Dockerfile*
-docker-compose*
-.dockerignore
-.git
-.gitignore
-.vscode
+# 排除本地的依賴套件與日誌
+node_modules
+npm-debug.log
+
+# 排除敏感資訊
+.env
+
+config/upheld-now-268802-d8afa282b657.json
+
+# 排除不需要的舊版/測試檔案
+webreport_userdb/
+1app.js
+1service/
+1routes/
+
+# 排除另外一個服務的檔案
+main.py
+
+# 排除本地打包工具設定檔
+docker-compose.yml
