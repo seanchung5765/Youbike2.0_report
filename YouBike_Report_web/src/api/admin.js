@@ -9,7 +9,7 @@ export const getUserRoles = () => apiClient.get("/admin/userrole");
 export const getUserCities = (id) => apiClient.get(`/admin/usercity/${id}`);
 
 // 取得系統中所有的城市列表
-export const getAllCities = () => apiClient.get("/admin//citys");
+export const getAllCities = () => apiClient.get("/admin/citys");
 
 // 更新特定員工的城市權限
 export const updateUserCities = (id, data) => apiClient.put(`/admin/role_citys/${id}`, data);
@@ -43,3 +43,9 @@ export const getUserRole = (id) => apiClient.get(`/admin/role/${id}`);
 
 // 更新特定帳號的角色 (注意：這裡是用 PATCH)
 export const updateUserRole = (id, data) => apiClient.patch(`/admin/role/${id}`, data);
+
+// 取得所有人的城市權限清單
+export const getAllUserCitiesAll = () => apiClient.get('/admin/usercity_all');
+
+// 取得所有報表群組 
+export const getReportGroups = () => apiClient.get("/admin/report_groups");

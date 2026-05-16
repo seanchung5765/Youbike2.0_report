@@ -1,4 +1,3 @@
-<!--負責顯示 登入畫面-->
 <template>
   <div class="container">
     <loading
@@ -6,16 +5,22 @@
       :can-cancel="false"
       :is-full-page="true"
     />
-    <div class="row justify-content-center">
-      <div class="col-12 col-md-8 col-lg-6 border border-3 py-3 px-3 rounded-3">
-        <div class="my-0">
+    <!-- 增加 mt-5 讓整個框稍微往下推，不要太貼螢幕頂部 -->
+    <div class="row justify-content-center mt-5">
+      
+      <!-- 調整這裡：將原本的 col-md-8 col-lg-6 縮小為 col-sm-8 col-md-6 col-lg-4，並加大 padding (px-4) -->
+      <div class="col-11 col-sm-8 col-md-6 col-lg-4 border border-3 py-4 px-4 rounded-3 bg-white">
+        
+        <div class="my-0 text-center">
           <img
             src="/youbike-logo-white.png"
             class="img-fluid"
             alt="YouBike Logo"
+            style="max-width: 400px; width: 100%;" 
           />
         </div>
-        <n-form ref="formRef" :rules="rules" :size="'large'" :model="formValue">
+
+        <n-form ref="formRef" :rules="rules" :size="'large'" :model="formValue" class="mt-4">
           <n-form-item label="帳號" path="account">
             <n-popover trigger="click" v-model:show="showPopover">
               <template #trigger>
@@ -32,6 +37,7 @@
               <div>英文只允許大寫</div>
             </n-popover>
           </n-form-item>
+
           <n-form-item label="密碼" path="password">
             <n-input
               ref="passwordInput" 
@@ -45,15 +51,26 @@
               }"
             />
           </n-form-item>
-          <n-button
-            attr-type="button"
-            type="primary"
-            @click="subButton"
-            class="col-12 col-md-2"
-          >
-            送出
-          </n-button>
+
+          <!-- 框變窄後，建議將按鈕設為滿寬 (w-100) 視覺上會更整齊好看 -->
+          <div class="d-flex justify-content-end mt-2">
+            <n-button
+              attr-type="button"
+              type="primary"
+              @click="subButton"
+              class="w-100"
+            >
+              確定
+            </n-button>
+          </div>
         </n-form>
+
+        <div class="d-flex justify-content-end mt-4">
+          <div class="fw-bold" style="font-size: 12px; color: #888; letter-spacing: 1px;">
+            v2.0.0
+          </div>
+        </div>
+
       </div>
     </div>
   </div>

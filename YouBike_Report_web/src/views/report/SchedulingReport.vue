@@ -1,111 +1,94 @@
 <template>
-  <div class="container-fluid px-0">
-    <loading
-      v-model:active="isLoading"
-      :can-cancel="false"
-      :is-full-page="true"
-    />
-    <div class="row mx-0">
-      <h1 class="report-h1 fw-bold">調度日報</h1>
+  <div class="container-fluid px-0" style="display: flex; flex-direction: column; height: calc(100vh - 120px);">
+    <loading v-model:active="isLoading" :can-cancel="false" :is-full-page="true" />
+    
+    <div class="flex-shrink-0">
+      <div class="row mx-0">
+        <h1 class="report-h1 fw-bold">調度日報</h1>
+      </div>
+
+      <form
+        class="mx-0 py-3 px-3"
+        :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
+        style="display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; overflow-x: auto;"
+      >
+        <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+          <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
+          <div style="width: 160px;">
+            <n-select
+              v-model:value="city"
+              :options="cityOptions"
+              placeholder="請選擇"
+            />
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; border-left: 2px solid #ccc; padding-left: 12px;">
+          <div style="width: 140px;">
+            <n-date-picker
+              v-model:formatted-value="starttimestamp"
+              type="date"
+              value-format="yyyy-MM-dd"
+              placeholder="開始日期"
+              :is-date-disabled="disableStartDate"
+              clearable
+            />
+          </div>
+          <span class="fw-bold">至</span>
+          <div style="width: 140px;">
+            <n-date-picker
+              v-model:formatted-value="endtimestamp"
+              type="date"
+              value-format="yyyy-MM-dd"
+              placeholder="結束日期"
+              :is-date-disabled="disableEndDate"
+              clearable
+            />
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
+          <button type="button" class="btn btn-info text-light" style="white-space: nowrap;" @click="cleardate">清空日期</button>
+          <button type="button" class="btn btn-success text-light" style="white-space: nowrap;" @click="search">搜尋</button>
+          <output-excel
+            class="btn btn-primary text-light"
+            style="white-space: nowrap;"
+            :data="exceldata"
+            :name="excelename"
+            :header="excelecolumn"
+          />
+        </div>
+      </form>
     </div>
 
-    <!-- 🚀 鐵壁防禦排版：強制單行、橫向捲軸 -->
-    <form
-      class="mx-0 py-3 px-3"
-      :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
-      style="display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; overflow-x: auto;"
-    >
-      <!-- 系統別 -->
-      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
-        <label class="fw-bolder mb-0" style="white-space: nowrap;">系統別:</label>
-        <div style="width: 120px;">
-          <n-select
-            v-model:value="category"
-            :options="sysOptions"
-            @update:value="city = null"
-            placeholder="請選擇"
-          />
-        </div>
-      </div>
-
-      <!-- 城市 -->
-      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
-        <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
-        <div style="width: 160px;">
-          <n-select
-            v-model:value="city"
-            :options="cityOptions"
-            placeholder="請選擇"
-            :disabled="!category"
-          />
-        </div>
-      </div>
-
-      <!-- 日期區間 -->
-      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; border-left: 2px solid #ccc; padding-left: 12px;">
-        <div style="width: 140px;">
-          <n-date-picker
-            v-model:formatted-value="starttimestamp"
-            type="date"
-            value-format="yyyy-MM-dd"
-            placeholder="開始日期"
-            :is-date-disabled="disableStartDate"
-            clearable
-          />
-        </div>
-        <span class="fw-bold">至</span>
-        <div style="width: 140px;">
-          <n-date-picker
-            v-model:formatted-value="endtimestamp"
-            type="date"
-            value-format="yyyy-MM-dd"
-            placeholder="結束日期"
-            :is-date-disabled="disableEndDate"
-            clearable
-          />
-        </div>
-      </div>
-
-      <!-- 按鈕群組 -->
-      <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
-        <button type="button" class="btn btn-info text-light" style="white-space: nowrap;" @click="cleardate">清空日期</button>
-        <button type="button" class="btn btn-success text-light" style="white-space: nowrap;" @click="search">搜尋</button>
-        <output-excel
-          class="btn btn-primary text-light"
-          style="white-space: nowrap;"
-          :data="exceldata"
-          :name="excelename"
-          :header="excelecolumn"
-        />
-      </div>
-    </form>
-
-    <n-data-table
-      v-show="data?.length > 1"
-      size="small"
-      ref="dataTable"
-      :columns="columns"
-      :data="data"
-      :pagination="{ pageSize: 18 }"
-      :max-height="600"
-      :scroll-x="1000"
-      :bordered="false"
-      :single-line="false"
-      striped
-    />
+    <div class="flex-grow-1 mx-3 mt-3 mb-2" style="min-height: 0;">
+      <n-data-table
+        v-show="data?.length > 0"
+        size="small"
+        ref="dataTable"
+        :columns="columns"
+        :data="data"
+        :scroll-x="currentScrollX" 
+        :bordered="false"
+        :single-line="false"
+        flex-height
+        style="height: 100%;"
+        :class="{ 'dark-mode-table': ischange }"
+        :row-class-name="rowClassName"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, inject, computed } from "vue";
+import { ref, inject, computed, onMounted } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { useUserStore } from "../../stores/userdata";
 import { NDataTable, NDatePicker, NSelect } from "naive-ui";
 import OutputExcel from "../../components/OutputExcel.vue";
-import * as XLSX from "xlsx";
-// 🚀 引入共用 API
 import { getGcpReport } from "@/api/report";
+import { getAllCities } from "@/api/admin";
 
 const store = useUserStore();
 const canusecitys = store.citys || [];
@@ -117,7 +100,6 @@ async function NotCityAlert(text) {
 }
 
 const isLoading = ref(false);
-const category = ref(null);
 const city = ref(null);
 const starttimestamp = ref(null);
 const endtimestamp = ref(null);
@@ -125,56 +107,47 @@ const data = ref([]);
 const columns = ref([]);
 const dataTable = ref(null);
 
-// 🚀 Excel 響應式變數
 const exceldata = ref([]);
 const excelename = ref("");
 const excelecolumn = ref([]);
 
-const sysOptions = [
-  { label: "1.0", value: "1" },
-  { label: "2.0+2.0E", value: "2" }
-];
+// 🚀 新增：響應式計算橫向總寬度，有多少欄就撐多寬，絕對不再被壓扁或拉太寬
+const currentScrollX = computed(() => {
+  return columns.value.reduce((sum, col) => sum + (col.width || 110), 0);
+});
 
-// --- 🚀 城市選單 (資料驅動) ---
-const cityOptions = computed(() => {
-  if (!category.value) return [];
+// --- 城市選單 (API 動態載入) ---
+const cityOptions = ref([]);
 
-  const baseMap = [
-    { label: "台北市", value: "Taipei", auth: 2 },
-    { label: "新北市", value: "Newtaipei", auth: 3 },
-    { label: "桃園市", value: "Taoyuan", auth: 4 },
-    { label: "新竹市", value: "Hsinchu", auth: 5 },
-    { label: "新竹縣", value: "Hsinchu_Country", auth: 6 },
-    { label: "竹科", value: "HsinchuScience", auth: 20 },
-    { label: "苗栗縣", value: "Miaoli", auth: 7 },
-    { label: "台中市", value: "Taichung", auth: 8 },
-    { label: "嘉義市", value: "Chiayi", auth: 12 },
-    { label: "嘉義縣", value: "Chiayi_Country", auth: 13 },
-    { label: "台南市", value: "Tainan", auth: 14 },
-    { label: "高雄市", value: "Kaohsiung", auth: 15 },
-    { label: "屏東縣", value: "Pingtung", auth: 16 },
-    { label: "台東縣", value: "Taitung", auth: 19 },
-  ];
-
-  if (category.value === "1") {
-    // 1.0 只有新北、桃園、苗栗
-    return baseMap.filter(c => ["Newtaipei", "Taoyuan", "Miaoli"].includes(c.value) && canusecitys.includes(c.auth));
-  } else {
-    // 2.0 處理：增加「雙北」選項
+const loadCities = async () => {
+  try {
+    const res = await getAllCities();
+    const dbCities = res.data.data || [];
+    
     const options = [];
     if (canusecitys.includes(2) && canusecitys.includes(3)) {
       options.push({ label: "雙北", value: "TaipeiNewtaipei2" });
     }
-    baseMap.forEach(c => {
-      if (canusecitys.includes(c.auth)) {
-        options.push({ label: c.label, value: `${c.value}2` });
+
+    dbCities.forEach(c => {
+      if (c.status === 'active' && canusecitys.includes(c.city_id)) {
+        let rawCode = c.codes ? c.codes.split(',')[0].trim() : '';
+        let cleanBaseCode = rawCode.replace(/2E$/i, '').replace(/2$/i, '');
+        options.push({ label: c.city_name, value: cleanBaseCode + '2' });
       }
     });
-    return options;
+
+    cityOptions.value = options;
+  } catch (error) {
+    console.error("載入縣市失敗:", error);
   }
+};
+
+onMounted(() => {
+  loadCities();
 });
 
-// --- 🚀 日期防呆 (限制 30 天) ---
+// --- 日期防呆 ---
 const getTodayStart = () => new Date().setHours(0, 0, 0, 0);
 const MIN_DATE = new Date(2023, 0, 1).getTime();
 
@@ -198,21 +171,29 @@ const disableEndDate = (ts) => {
 
 const cleardate = () => { starttimestamp.value = null; endtimestamp.value = null; };
 
-// --- 🚀 資料矩陣處理 (轉置邏輯) ---
-const processMatrixData = (rawData) => {
-  if (!rawData || rawData.length === 0) return;
+// 🚀 改為標準的奇偶數斑馬紋命名
+const rowClassName = (row, index) => {
+  return index % 2 === 0 ? 'row-even' : 'row-odd';
+};
 
-  // 1. 製作表頭 (取每支直向 Array 的 index 2 作為 title)
+// --- 資料矩陣處理 ---
+const processMatrixData = (rawData) => {
+  if (!rawData || rawData.length === 0) {
+    data.value = [];
+    columns.value = [];
+    return;
+  }
+
+  // 1. 製作表頭：第一欄文字長給 220px，其餘日期欄給精緻的 110px 寬度
   columns.value = rawData.map((colData, index) => ({
     key: `item${index + 1}`,
     align: "center",
     title: colData[2] ?? "",
-    fixed: index === 0 ? "left" : undefined,
-    width: index === 0 ? 150 : undefined
+    fixed: index === 0 ? "left" : false, 
+    width: index === 0 ? 220 : 110
   }));
 
-  // 2. 矩陣轉置 (將直向資料轉為 Row)
-  // 資料起始點為 index 3
+  // 2. 矩陣轉置
   const rowCount = rawData[0].length;
   const rows = [];
   for (let rowIndex = 3; rowIndex < rowCount; rowIndex++) {
@@ -231,7 +212,7 @@ const getData = async () => {
     isLoading.value = true;
     const params = {
       dataset_id: "report",
-      table_id: `daily_report_maintain_query${category.value}`,
+      table_id: "daily_report_maintain_query2", 
       begin_date: starttimestamp.value,
       end_date: endtimestamp.value,
       city: city.value,
@@ -242,12 +223,9 @@ const getData = async () => {
 
     processMatrixData(resData);
 
-    // 更新 Excel 提供者
     exceldata.value = [...data.value];
     excelename.value = "調度日報";
     excelecolumn.value = columns.value.map(c => c.title);
-
-    if (dataTable.value?.page) dataTable.value.page(1);
 
   } catch (error) {
     console.error("API Error:", error);
@@ -258,9 +236,36 @@ const getData = async () => {
 };
 
 const search = () => {
-  if (!category.value) return NotCityAlert("請選擇系統別");
   if (!city.value) return NotCityAlert("請選擇城市");
   if (!starttimestamp.value || !endtimestamp.value) return NotCityAlert("請選擇完整日期範圍");
   getData();
 };
 </script>
+
+<style scoped>
+:deep(.n-data-table-wrapper) {
+  height: 100% !important;
+}
+
+/* 🚀 亮色模式 (預設)：一白一淡灰 */
+:deep(.row-even td) {
+  background-color: #ffffff !important;
+}
+:deep(.row-odd td) {
+  background-color: #e8e8e8 !important; 
+}
+:deep(.n-data-table-tr:hover td) {
+  background-color: #e6f7ff !important;
+}
+
+/* 🚀 暗色模式：一深黑一淺黑 */
+:deep(.dark-mode-table .row-even td) {
+  background-color: #18181c !important; 
+}
+:deep(.dark-mode-table .row-odd td) {
+  background-color: #2c2c32 !important; 
+}
+:deep(.dark-mode-table .n-data-table-tr:hover td) {
+  background-color: #3b3b45 !important; 
+}
+</style>

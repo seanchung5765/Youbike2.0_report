@@ -22,7 +22,7 @@ const bindAsync = (username, password) => {
     client.bind(bindDN, password, (err) => {
       if (err) {
         if (typeof client.destroy === 'function') client.destroy();
-        return reject(new Error(`LDAP 綁定失敗: ${err.message}`));
+        return reject(new Error(`${err.message}`));
       }
       resolve(client);
     });

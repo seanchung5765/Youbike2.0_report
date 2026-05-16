@@ -9,13 +9,11 @@
       <h1 class="report-h1 fw-bold">TPASS 補助款月報</h1>
     </div>
 
-    <!-- 🚀 鐵壁防禦排版：強制單行、橫向捲軸 -->
     <form
       class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
       style="display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; overflow-x: auto;"
     >
-      <!-- 日期選擇 -->
       <div style="width: 160px; flex-shrink: 0;">
         <n-date-picker
           v-model:formatted-value="timestamp"
@@ -29,7 +27,6 @@
         />
       </div>
 
-      <!-- 按鈕群組 -->
       <div style="display: flex; gap: 8px; flex-shrink: 0;">
         <button
           type="button"
@@ -49,19 +46,22 @@
       </div>
     </form>
 
-    <n-data-table
-      v-show="data.length > 0"
-      size="small"
-      :data="data"
-      ref="dataTable"
-      :columns="columns"
-      :pagination="{ pageSize: 17 }"
-      :max-height="600"
-      :scroll-x="1000"
-      :bordered="false"
-      :single-line="false"
-      striped
-    />
+    <div style="height: calc(100vh - 180px); padding-bottom: 10px; margin-top: 10px;">
+      <n-data-table
+        v-show="data.length > 0"
+        size="small"
+        :data="data"
+        ref="dataTable"
+        :columns="columns"
+        :max-height="600"
+        :scroll-x="1000"
+        :bordered="false"
+        :single-line="false"
+        flex-height
+        style="height: 100%;"
+        :row-class-name="rowClassName"
+      />
+    </div>
   </div>
 </template>
 
@@ -71,14 +71,13 @@ import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { NDataTable, NDatePicker } from "naive-ui";
 import OutputExcel from "../../components/OutputExcel.vue";
-// 🚀 引入共用 API
 import { getGcpReport } from "@/api/report";
 
 const swal = inject("$swal");
 const ischange = inject("ischange");
 
 async function NotCityAlert(text) {
-  swal({ icon: "error", title: text, showConfirmButton: false });
+  swal({ icon: "error", title: text, showConfirmButton: false, timer: 1500 });
 }
 
 const timestamp = ref(null);
@@ -86,7 +85,6 @@ const isLoading = ref(false);
 const data = ref([]);
 const dataTable = ref(null);
 
-// 🚀 響應式 Excel 變數
 const exceldata = ref([]);
 const excelename = ref("");
 const excelecolumn = ref([]);
@@ -102,12 +100,17 @@ const columns = [
   { key: "num7", align: "center", title: "單筆補助金額", width: 120 },
 ];
 
-// --- 日期防呆 (限制 2023 年至今，且不能選未來月份) ---
+// 🚀 斑馬紋樣式設定 (#e8e8e8)
+const rowClassName = (row, index) => {
+  return index % 2 === 1 ? 'gray-row' : '';
+};
+
+// --- 日期防呆 ---
 const disablePreviousDate = (ts) => {
   const d = new Date(ts);
   const now = new Date();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const minDate = new Date(2023, 0, 1); // 2023-01
+  const minDate = new Date(2023, 0, 1);
   return d >= currentMonthStart || d < minDate;
 };
 
@@ -118,7 +121,7 @@ const prepareExcel = (reportData) => {
   excelecolumn.value = columns.map(c => c.title);
 };
 
-// --- 🚀 核心 API 請求 ---
+// --- API 請求 ---
 const getData = async () => {
   try {
     isLoading.value = true;
@@ -131,7 +134,6 @@ const getData = async () => {
     const res = await getGcpReport(params);
     const rawData = res.data?.data || [];
 
-    // 🚀 資料轉換：排序 + Mapping
     data.value = [...rawData]
       .sort((a, b) => (a.rank || 0) - (b.rank || 0))
       .map(item => ({
@@ -144,12 +146,8 @@ const getData = async () => {
         num7: item.subsidy ?? 0,
       }));
 
-    // 同步更新 Excel 組件資料
     prepareExcel(data.value);
     
-    if (dataTable.value?.page) {
-      dataTable.value.page(1);
-    }
   } catch (error) {
     console.error("API Error:", error);
     NotCityAlert("查詢失敗，請稍後再試");
@@ -163,3 +161,15 @@ const search = () => {
   getData();
 };
 </script>
+
+<style scoped>
+/* 🚀 灰色行的背景顏色 (#e8e8e8) */
+:deep(.gray-row td) {
+  background-color: #e8e8e8 !important;
+}
+
+/* 滑鼠經過高亮 (避免被灰色強制蓋掉) */
+:deep(.n-data-table .n-data-table-tr.gray-row:hover td) {
+  background-color: #d1d1d1 !important;
+}
+</style>

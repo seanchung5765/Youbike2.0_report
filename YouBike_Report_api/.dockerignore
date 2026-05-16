@@ -1,20 +1,24 @@
-# 排除本地的依賴套件與日誌
-node_modules
-npm-debug.log
-
-# 排除敏感資訊
+# 1. 封鎖密碼與憑證
+config/
 .env
+*.pem
+*.json
+!package.json
+!package-lock.json
 
-config/upheld-now-268802-d8afa282b657.json
+# 2. 封鎖本機套件與編輯器快取
+node_modules/
+.vs/
+.vscode/
+.git/
+.gitignore
 
-# 排除不需要的舊版/測試檔案
-webreport_userdb/
-1app.js
-1service/
-1routes/
-
-# 排除另外一個服務的檔案
-main.py
-
-# 排除本地打包工具設定檔
+# 3. 封鎖 Docker 自身的設定檔
+Dockerfile
 docker-compose.yml
+
+# 4. 封鎖本機開發殘留的雜物
+main.py
+webreport_userdb/
+*_backup/
+*.md

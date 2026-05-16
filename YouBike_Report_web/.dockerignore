@@ -1,0 +1,21 @@
+# 1. 封鎖超級肥大的依賴套件 (讓 Docker 內部自己 npm install)
+node_modules/
+
+# 2. 封鎖本機編譯的產物 (讓 Docker 內部自己 npm run build)
+dist/
+dist-ssr/
+
+# 3. 封鎖環境變數密碼檔
+.env
+.env.*
+
+# 4. 封鎖編輯器與 Git 暫存檔
+.vs/
+.vscode/
+.git/
+.gitignore
+
+# 5. 封鎖 Docker 相關與說明檔
+dockerfile
+Dockerfile
+README.md

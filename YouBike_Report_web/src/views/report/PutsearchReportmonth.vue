@@ -5,25 +5,18 @@
       <h1 class="report-h1 fw-bold">投保率分析月報</h1>
     </div>
 
-    <!-- 🚀 鐵壁防禦排版：強制單行、不換行、橫向捲軸 -->
     <form
       class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
       style="display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; overflow-x: auto;"
     >
-      <!-- 類別選擇 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">類別:</label>
         <div style="width: 180px;">
-          <n-select
-            v-model:value="category"
-            :options="categoryOptions"
-            placeholder="請選擇"
-          />
+          <n-select v-model:value="category" :options="categoryOptions" placeholder="請選擇" />
         </div>
       </div>
 
-      <!-- 城市與全選 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; border-left: 2px solid #ccc; padding-left: 16px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
         <div style="width: 160px;">
@@ -42,13 +35,12 @@
         </button>
       </div>
 
-      <!-- 🚀 優化後的日期與全選/清空 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; border-left: 2px solid #ccc; padding-left: 16px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">日期:</label>
         <div style="width: 220px;">
           <n-select
             v-model:value="date"
-            placeholder="可輸入搜尋 (如: 2026)"
+            placeholder="可搜尋 (如: 2026)"
             multiple
             filterable
             clearable
@@ -60,12 +52,8 @@
         <button type="button" class="btn btn-sm btn-success text-light" style="white-space: nowrap;" @click="setAllDate">
           全選
         </button>
-        <button type="button" class="btn btn-sm btn-secondary text-light" style="white-space: nowrap;" @click="date = []">
-          清空
-        </button>
       </div>
 
-      <!-- 🚀 還原獨立的搜尋與匯出按鈕 -->
       <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
         <button type="button" class="btn btn-success text-light" style="white-space: nowrap;" @click="search">
           搜尋
@@ -80,30 +68,37 @@
       </div>
     </form>
 
-    <n-data-table
-      v-show="data.length > 0"
-      ref="dataTable"
-      :data="data"
-      :columns="columns"
-      :pagination="{ pageSize: 15 }"
-      :max-height="600"
-      :scroll-x="1200"
-      :bordered="false"
-      size="small"
-      :single-line="false"
-      striped
-    />
+    <div style="height: calc(100vh - 180px); padding-bottom: 10px; margin-top: 10px;">
+      <n-data-table
+        v-show="data.length > 0"
+        ref="dataTable"
+        :data="data"
+        :columns="columns"
+        :max-height="600"
+        :scroll-x="1200"
+        :bordered="false"
+        size="small"
+        :single-line="false"
+        striped
+        flex-height
+        style="height: 100%;"
+        :row-class-name="rowClassName"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, inject, computed } from "vue";
+import { ref, inject, computed, onMounted } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { NDataTable, NSelect } from "naive-ui";
 import OutputExcel from "../../components/OutputExcel.vue";
 import { useUserStore } from "../../stores/userdata";
+
+// 🚀 引入 API
 import { getGcpReport } from "@/api/report";
+import { getAllCities } from "@/api/admin";
 
 const ischange = inject("ischange");
 const swal = inject("$swal");
@@ -122,7 +117,6 @@ const city = ref([]);
 const date = ref([]);
 const columns = ref([]);
 
-// 🚀 改為 ref，確保 <output-excel> 能即時抓到更新的資料
 const exceldata = ref([]);
 const excelename = ref("");
 const excelecolumn = ref([]);
@@ -134,28 +128,33 @@ const categoryOptions = [
   { label: "實名會員統計", value: "monthly_report_MEBER" },
 ];
 
-// --- 城市選單 ---
-const cityOptions = computed(() => {
-  const map = [
-    { label: "全公司", value: "全公司", auth: [] },
-    { label: "台北市", value: "台北市", auth: [2] },
-    { label: "新北市", value: "新北市", auth: [3] },
-    { label: "桃園市", value: "桃園市", auth: [4] },
-    { label: "新竹市+竹科", value: "新竹市+竹科", auth: [5, 20] },
-    { label: "新竹市", value: "新竹市", auth: [5] },
-    { label: "新竹縣", value: "新竹縣", auth: [6] },
-    { label: "竹科", value: "竹科", auth: [20] },
-    { label: "苗栗縣", value: "苗栗縣", auth: [7] },
-    { label: "台中市", value: "台中市", auth: [8] },
-    { label: "彰化縣", value: "彰化縣", auth: [9] },
-    { label: "嘉義市", value: "嘉義市", auth: [12] },
-    { label: "嘉義縣", value: "嘉義縣", auth: [13] },
-    { label: "台南市", value: "台南市", auth: [14] },
-    { label: "高雄市", value: "高雄市", auth: [15] },
-    { label: "屏東縣", value: "屏東縣", auth: [16] },
-    { label: "台東縣", value: "台東縣", auth: [19] },
-  ];
-  return map.filter(c => c.auth.every(a => canusecitys.includes(a)));
+// --- 🚀 城市選單 (API 動態載入) ---
+const cityOptions = ref([]);
+
+const loadCities = async () => {
+  try {
+    const res = await getAllCities();
+    const dbCities = res.data.data || [];
+    
+    // 過濾並排除掉手寫時代的「新竹市+竹科」
+    const options = dbCities
+      .filter(c => c.status === 'active' && canusecitys.includes(c.city_id))
+      .map(c => ({
+        label: c.city_name,
+        value: c.city_name 
+      }));
+
+    // 🚀 加入全公司選項
+    options.unshift({ label: "全公司", value: "全公司" });
+    cityOptions.value = options;
+
+  } catch (error) {
+    console.error("載入縣市失敗:", error);
+  }
+};
+
+onMounted(() => {
+  loadCities();
 });
 
 const setAllCity = () => { city.value = cityOptions.value.map(c => c.value); };
@@ -174,53 +173,51 @@ const dateOptions = computed(() => {
     arr.push({ label: `${y}-${m}`, value: `${y}-${m}` });
     current.setMonth(current.getMonth() + 1);
   }
-  return arr.reverse(); // 最新月份排上面
+  return arr.reverse();
 });
 
 const setAllDate = () => { date.value = dateOptions.value.map(d => d.value); };
 
+// --- 🚀 斑馬紋樣式 (#e8e8e8) ---
+const rowClassName = (row, index) => {
+  return index % 2 === 1 ? 'gray-row' : '';
+};
+
 // --- 表頭定義 ---
-const column1 = [
-  { key: "item1", align: "center", fixed: "left", title: "月份", width: 100 },
-  { key: "item2", align: "center", title: "縣市", width: 100 },
-  { key: "item3", align: "center", title: "總會員卡數(A)" },
-  { key: "item4", align: "center", title: "總騎乘次數(B)" },
-  { key: "item5", align: "center", title: "有使用紀錄會員卡數(C)" },
-  { key: "item6", align: "center", title: "註冊地卡數" },
-  { key: "item7", align: "center", title: "非註冊地卡數" },
-  { key: "item8", align: "center", title: "有使用紀錄卡片占比(D=C/A)" },
-  { key: "item9", align: "center", title: "有使用紀錄卡片加保張數(E)" },
-  { key: "item10", align: "center", title: "保險涵蓋率_卡片數(F=E/C)" },
-  { key: "item11", align: "center", title: "有加保卡片的騎乘次數(G)" },
-  { key: "item12", align: "center", title: "保險涵蓋率_使用次數(H=G/B)" },
-];
-
-const column2 = [
-  { key: "item1", align: "center", fixed: "left", title: "月份", width: 100 },
-  { key: "item2", align: "center", title: "縣市", width: 100 },
-  { key: "item3", align: "center", title: "總加保數" },
-  { key: "item4", align: "center", title: "總退保數" },
-  { key: "item5", align: "center", title: "累積有效加保數" },
-  { key: "item6", align: "center", title: "累積總會員卡片數" },
-  { key: "item7", align: "center", title: "總會員加保率" },
-];
-
-const column3 = [
-  { key: "item1", align: "center", fixed: "left", title: "月份", width: 100 },
-  { key: "item2", align: "center", title: "縣市", width: 100 },
-  { key: "item3", align: "center", title: "總會員數" },
-  { key: "item4", align: "center", title: "實名會員數" },
-  { key: "item5", align: "center", title: "非實名會員數" },
-  { key: "item6", align: "center", title: "總會員卡片數" },
-  { key: "item7", align: "center", title: "實名會員卡片數" },
-  { key: "item8", align: "center", title: "非實名會員卡片數" },
-];
-
-// --- 🚀 準備給 OutputExcel 元件的資料 ---
-const prepareExcelData = (nowdata, nowcolumn, name) => {
-  exceldata.value = [...nowdata];
-  excelename.value = name;
-  excelecolumn.value = nowcolumn.map(c => c.title);
+const columnConfigs = {
+  monthly_report_ride_INSUR: [
+    { key: "item1", align: "center", fixed: "left", title: "月份", width: 100 },
+    { key: "item2", align: "center", title: "縣市", width: 100 },
+    { key: "item3", align: "center", title: "總會員卡數(A)" },
+    { key: "item4", align: "center", title: "總騎乘次數(B)" },
+    { key: "item5", align: "center", title: "有使用紀錄會員卡數(C)" },
+    { key: "item6", align: "center", title: "註冊地卡數" },
+    { key: "item7", align: "center", title: "非註冊地卡數" },
+    { key: "item8", align: "center", title: "有使用紀錄卡片占比(D=C/A)" },
+    { key: "item9", align: "center", title: "有使用紀錄卡片加保張數(E)" },
+    { key: "item10", align: "center", title: "保險涵蓋率_卡片數(F=E/C)" },
+    { key: "item11", align: "center", title: "有加保卡片的騎乘次數(G)" },
+    { key: "item12", align: "center", title: "保險涵蓋率_使用次數(H=G/B)" },
+  ],
+  monthly_report_INSUR: [
+    { key: "item1", align: "center", fixed: "left", title: "月份", width: 100 },
+    { key: "item2", align: "center", title: "縣市", width: 100 },
+    { key: "item3", align: "center", title: "總加保數" },
+    { key: "item4", align: "center", title: "總退保數" },
+    { key: "item5", align: "center", title: "累積有效加保數" },
+    { key: "item6", align: "center", title: "累積總會員卡片數" },
+    { key: "item7", align: "center", title: "總會員加保率" },
+  ],
+  monthly_report_MEBER: [
+    { key: "item1", align: "center", fixed: "left", title: "月份", width: 100 },
+    { key: "item2", align: "center", title: "縣市", width: 100 },
+    { key: "item3", align: "center", title: "總會員數" },
+    { key: "item4", align: "center", title: "實名會員數" },
+    { key: "item5", align: "center", title: "非實名會員數" },
+    { key: "item6", align: "center", title: "總會員卡片數" },
+    { key: "item7", align: "center", title: "實名會員卡片數" },
+    { key: "item8", align: "center", title: "非實名會員卡片數" },
+  ]
 };
 
 // --- 工具函式 ---
@@ -238,7 +235,7 @@ const convertToPercentage = (value) => {
   return (value * 100).toFixed(1) + "%";
 };
 
-// --- API 請求與資料處理 ---
+// --- API 請求 ---
 const getData = async () => {
   try {
     isLoading.value = true;
@@ -252,57 +249,39 @@ const getData = async () => {
     const res = await getGcpReport(params);
     const rawData = res.data?.data || [];
 
-    let excelName = "";
+    columns.value = columnConfigs[category.value];
+    let excelName = categoryOptions.find(o => o.value === category.value)?.label || "報表";
 
-    // 資料處理 Mapping
+    // 🚀 資料 Mapping
     if (category.value === "monthly_report_ride_INSUR") {
-      columns.value = column1;
-      excelName = "騎乘投保率(月)";
       data.value = rawData.map(i => ({
-        item1: convertToFormattedDate(i.date),
-        item2: i.city ?? "",
-        item3: i.total_card ?? 0,
-        item4: i.ride_times ?? 0,
-        item5: i.ride_card ?? 0,
-        item6: i.ride_card_incity ?? 0,
-        item7: i.ride_card_nocity ?? 0,
-        item8: convertToPercentage(i.active_per),
-        item9: i.ride_card_INSUR ?? 0,
-        item10: convertToPercentage(i.ride_card_INSUR_per),
-        item11: i.ride_times_INSUR ?? 0,
-        item12: convertToPercentage(i.ride_times_INSUR_per),
+        item1: convertToFormattedDate(i.date), item2: i.city ?? "",
+        item3: i.total_card ?? 0, item4: i.ride_times ?? 0,
+        item5: i.ride_card ?? 0, item6: i.ride_card_incity ?? 0,
+        item7: i.ride_card_nocity ?? 0, item8: convertToPercentage(i.active_per),
+        item9: i.ride_card_INSUR ?? 0, item10: convertToPercentage(i.ride_card_INSUR_per),
+        item11: i.ride_times_INSUR ?? 0, item12: convertToPercentage(i.ride_times_INSUR_per),
       }));
     } else if (category.value === "monthly_report_INSUR") {
-      columns.value = column2;
-      excelName = "保險加保統計";
       data.value = rawData.map(i => ({
-        item1: convertToFormattedDate(i.date),
-        item2: i.city ?? "",
-        item3: i.total_add ?? 0,
-        item4: i.total_minus ?? 0,
-        item5: i.total_card_name ?? 0,
-        item6: i.total_card ?? 0,
+        item1: convertToFormattedDate(i.date), item2: i.city ?? "",
+        item3: i.total_add ?? 0, item4: i.total_minus ?? 0,
+        item5: i.total_card_name ?? 0, item6: i.total_card ?? 0,
         item7: convertToPercentage(i.INSUR_rate),
       }));
     } else if (category.value === "monthly_report_MEBER") {
-      columns.value = column3;
-      excelName = "實名會員統計";
       data.value = rawData.map(i => ({
-        item1: convertToFormattedDate(i.date),
-        item2: i.city ?? "",
-        item3: i.total_meber ?? 0,
-        item4: i.total_meber_name ?? 0,
-        item5: i.total_meber_no_name ?? 0,
-        item6: i.total_card ?? 0,
-        item7: i.total_card_name ?? 0,
-        item8: i.total_card_no_name ?? 0,
+        item1: convertToFormattedDate(i.date), item2: i.city ?? "",
+        item3: i.total_meber ?? 0, item4: i.total_meber_name ?? 0,
+        item5: i.total_meber_no_name ?? 0, item6: i.total_card ?? 0,
+        item7: i.total_card_name ?? 0, item8: i.total_card_no_name ?? 0,
       }));
     }
 
-    // 🚀 更新提供給 OutputExcel 元件的變數
-    prepareExcelData(data.value, columns.value, excelName);
-    
-    if (dataTable.value?.page) dataTable.value.page(1);
+    // 🚀 準備匯出資料
+    exceldata.value = [...data.value];
+    excelename.value = excelName;
+    excelecolumn.value = columns.value.map(c => c.title);
 
   } catch (error) {
     console.error("API Error:", error);
@@ -320,4 +299,14 @@ const search = () => {
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+/* 🚀 灰色行的背景顏色 (#e8e8e8) */
+:deep(.gray-row td) {
+  background-color: #e8e8e8 !important;
+}
+
+/* 滑鼠經過高亮 (避免被灰色強制蓋掉) */
+:deep(.n-data-table .n-data-table-tr.gray-row:hover td) {
+  background-color: #d1d1d1 !important;
+}
+</style>

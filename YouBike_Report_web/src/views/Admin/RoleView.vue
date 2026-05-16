@@ -62,6 +62,7 @@
     :isopen="openModel"
     @closemodel="closemodel"
     :title="howname"
+    v-model:rolename="rolename"
     :clickid="clickid"
     :data="data"
     :use="use"
@@ -86,6 +87,7 @@ const clickid = ref(null);
 const roles = ref([]);
 const data = ref([]);
 const howname = ref("");
+const rolename = ref(""); // 🚀 新增：專門用來綁定與編輯角色名稱
 
 // 動態分組函式：不再用數字 (page_type) 寫死，改用分類名稱 (category_name)
 const groupPagesByType = (pagesArray) => {
@@ -157,7 +159,8 @@ const closemodel = () => {
 const lookmodel = async (id, name) => {
   try {
     isLoading.value = true;
-    howname.value = name;
+    howname.value = "查看角色"; // 🚀 固定標題
+    rolename.value = name;      // 🚀 帶入目前的名稱供顯示
     use.value = "look";
     setmodel();
     data.value = await fetchAndProcessRolePages(id);
@@ -172,7 +175,8 @@ const lookmodel = async (id, name) => {
 const editmodel = async (id, name) => {
   try {
     isLoading.value = true;
-    howname.value = name;
+    howname.value = "編輯角色"; // 🚀 固定標題
+    rolename.value = name;      // 🚀 帶入目前的名稱供編輯
     clickid.value = id;
     use.value = "edit";
     setmodel();
@@ -188,7 +192,8 @@ const editmodel = async (id, name) => {
 const addmodel = async () => {
   try {
     isLoading.value = true;
-    howname.value = "新增角色";
+    howname.value = "新增角色"; // 🚀 固定標題
+    rolename.value = "";        // 🚀 清空名稱讓使用者自己打
     use.value = "add";
     setmodel();
     

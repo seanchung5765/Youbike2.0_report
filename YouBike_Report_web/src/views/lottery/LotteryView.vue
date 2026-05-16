@@ -11,9 +11,9 @@
 
     <h1 class="fw-bold fs-1 text-center mb-5">活動抽獎</h1>
     <div class="row mb-5 justify-content-center">
-      <div class="col-12 gx-md-5">
+      <div class="col-12 gx-md-5 d-flex justify-content-center">
         <div 
-          class="ad-banner-container shadow-sm border rounded-3 bg-white d-flex align-items-center justify-content-center overflow-hidden position-relative"
+          class="ad-banner-container shadow-sm border rounded-3 bg-white d-flex align-items-center justify-content-center overflow-hidden position-relative mx-auto"
           @click="triggerAdUpload"
           :style="{ cursor: 'pointer', minHeight: '200px' }"
         >
@@ -218,7 +218,7 @@ import { ref, inject, computed, onMounted, onUnmounted } from "vue";
 import { NModal } from "naive-ui";
 import { Vue3Lottie } from "vue3-lottie";
 import * as XLSX from "xlsx";
- import LottieJson from '@/assets/Animation - 1690257463274.json';
+import LottieJson from '@/assets/Animation - 1690257463274.json';
 
 // --- 狀態與變數管理 ---
 const swal = inject("$swal");
@@ -234,19 +234,16 @@ let inputexceltitle = null;
 
 const toggleFullScreen = () => {
   if (!document.fullscreenElement) {
-    // 進入全螢幕 (讓整個網頁主體放大)
     document.documentElement.requestFullscreen().catch(err => {
       NotAlert(`無法進入全螢幕: ${err.message}`);
     });
   } else {
-    // 退出全螢幕
     if (document.exitFullscreen) {
       document.exitFullscreen();
     }
   }
 };
 
-// 監聽事件：如果使用者按 Esc 退出，狀態也要跟著切換
 const handleFullscreenChange = () => {
   isFullScreen.value = !!document.fullscreenElement;
 };
@@ -276,12 +273,10 @@ onUnmounted(() => {
 
 const giftsetarr = ref([{ name: null, value: 1, key: 1 }]);
 
-// 🚀 動態預覽清單 (略過第一行的表頭)
 const excelPreviewList = computed(() => {
   return exceldata.value.length > 1 ? exceldata.value.slice(1) : [];
 });
 
-// --- UI 輔助方法 ---
 const NotAlert = (text) => {
   swal({ icon: "error", title: text, showConfirmButton: false, timer: 2500 });
 };
@@ -298,7 +293,6 @@ const totalParticipants = computed(() => {
   return exceldata.value.length > 1 ? exceldata.value.length - 1 : 0;
 });
 
-// --- Excel 讀取與解析 ---
 const Excelhandler = (event) => {
   const files = event.target.files[0];
   if (!files) return;
@@ -312,11 +306,10 @@ const Excelhandler = (event) => {
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false });
     
     exceldata.value = [...jsonData];
-    inputexceltitle = jsonData[0]; // 記住第一行的標題
+    inputexceltitle = jsonData[0]; 
   };
 };
 
-// --- 洗牌演算法 (Fisher-Yates Shuffle) ---
 const shuffleArray = (array) => {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -326,7 +319,6 @@ const shuffleArray = (array) => {
   return arr;
 };
 
-// --- 核心抽獎邏輯 ---
 const submit = async () => {
   const ticketnum = exceldata.value[0].indexOf("合計票數");
   const phonenum = exceldata.value[0].indexOf("手機號碼");
@@ -336,10 +328,8 @@ const submit = async () => {
     return NotAlert("EXCEL 格式錯誤：請確認包含手機號碼、外觀卡號、合計票數");
   }
 
-  // 1. 展平獎品需求 (例如: ['頭獎', '頭獎', '普獎'])
   const prizesToDraw = giftsetarr.value.flatMap(gift => Array(Number(gift.value)).fill(gift.name));
 
-  // 2. 建立抽獎池：依據「合計票數」放入對應數量的籤
   let pool = [];
   exceldata.value.slice(1).forEach((row) => {
     const tickets = parseInt(row[ticketnum]) || 0;
@@ -348,27 +338,23 @@ const submit = async () => {
     }
   });
 
-  // 3. 防呆檢查：獨立人數是否足夠抽獎
   const uniqueUsers = new Set(pool.map(item => String(item[phonenum]))).size;
   if (uniqueUsers < prizesToDraw.length) {
     return NotAlert(`抽獎人數不足：符合資格的不重複人數(${uniqueUsers}) 小於 獎品總數(${prizesToDraw.length})`);
   }
 
-  // 4. 徹底洗牌，打亂所有籤
   pool = shuffleArray(pool);
 
   const winners = [];
   const wonPhones = new Set();
   const wonCards = new Set();
 
-  // 5. 依序發獎，使用 Set 瞬間判斷是否重複中獎
   for (const candidate of pool) {
     if (winners.length === prizesToDraw.length) break;
 
     const phone = String(candidate[phonenum]);
     const card = String(candidate[numbernum]);
 
-    // O(1) 瞬間檢查：如果沒中過獎，就給獎品並記錄
     if (!wonPhones.has(phone) && !wonCards.has(card)) {
       winners.push(candidate);
       wonPhones.add(phone);
@@ -376,7 +362,6 @@ const submit = async () => {
     }
   }
 
-  // 6. 整理得獎清單與渲染表格 (不再拼接純文字)
   winnermantotal.value = winners.map((winner, index) => ({
     name: prizesToDraw[index],
     value: winner,
@@ -392,16 +377,14 @@ const startlottery = () => {
   setTimeout(() => {
     submit();
     showModal.value = false;
-  }, 3500); // 讓動畫跑 3.5 秒
+  }, 3500); 
 };
 
-// --- 工具：場站轉換與區域判斷 ---
 const limitToFiveDigits = (val) => {
   const s = String(val);
   return s.length > 5 ? parseInt(s.substring(0, 4)) : (parseInt(val) || 0);
 };
 
-// 🚀 完整官方名稱的城市對照表 (乾淨俐落)
 const getCityName = (num) => {
   const specificMap = {
     5001: "台北市", 5002: "新北市", 5003: "桃園市", 5004: "新竹市",
@@ -412,25 +395,21 @@ const getCityName = (num) => {
   return specificMap[num] || null;
 };
 
-// --- 匯出 Excel ---
 const sebmitexcel = () => {
   const workbook = XLSX.utils.book_new();
   
-  // 依照「獎品名稱」分組
   const groupedWinners = winnermantotal.value.reduce((acc, curr) => {
     if (!acc[curr.name]) acc[curr.name] = [];
     acc[curr.name].push(curr.value);
     return acc;
   }, {});
 
-  // 1. 產出各獎項的 Worksheet
   Object.entries(groupedWinners).forEach(([prizeName, winners]) => {
     const sheetData = [inputexceltitle];
     winners.forEach(winner => sheetData.push(winner));
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(sheetData), prizeName);
   });
 
-  // 2. 產出城市分類的 Worksheet (如果有借車場站代號)
   const sendcarnum = exceldata.value[0].indexOf("借車場站代號");
   if (sendcarnum > 0) {
     const cityKeys = [
@@ -459,11 +438,13 @@ const sebmitexcel = () => {
 </script>
 
 <style scoped>
-/* 廣告看板容器比例 */
+/* 🚀 廣告看板容器響應式與置中設定 */
 .ad-banner-container {
-  /* 設定最大高度，避免 600px 在小螢幕太佔空間 */
+  width: 100%;             /* 確保手機版時能撐滿欄位寬度 */
+  max-width: 1280px;       /* 防止在超大螢幕無限制拉伸 (1920/600 * 400 = 1280) */
   max-height: 400px; 
-  aspect-ratio: 1920 / 600; /* 強制維持 3.2:1 的比例 */
+  aspect-ratio: 1920 / 600; /* 強制維持 3.2:1 的完美比例 */
+  margin: 0 auto;          /* 🚀 絕對置中的關鍵 */
   transition: all 0.3s ease;
 }
 
@@ -473,7 +454,7 @@ const sebmitexcel = () => {
 }
 
 .ad-image {
-  object-fit: cover; /* 關鍵：確保圖片填滿容器且不變形 */
+  object-fit: cover; 
 }
 
 .ad-overlay {
@@ -486,11 +467,10 @@ const sebmitexcel = () => {
   opacity: 1;
 }
 
-/* 讓表格在滾動時，背景色不要變透明 */
 th {
   background-clip: padding-box;
 }
-/* 自定義滾動條美化 */
+
 .table-responsive::-webkit-scrollbar {
   width: 8px;
   height: 8px;

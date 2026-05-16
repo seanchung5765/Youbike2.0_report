@@ -5,17 +5,14 @@
       <h1 class="report-h1 fw-bold">投保率分析週報</h1>
     </div>
 
-    <!-- 🚀 鐵壁防禦排版：強制單行、不換行、橫向捲軸 -->
     <form
       class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
       style="display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; overflow-x: auto;"
     >
-      <!-- 城市與全選 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
         <div style="width: 160px;">
-          <!-- 🚀 統一為 n-select -->
           <n-select
             v-model:value="city"
             placeholder="請選擇"
@@ -31,7 +28,6 @@
         </button>
       </div>
 
-      <!-- 日期與全選/清空 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; border-left: 2px solid #ccc; padding-left: 16px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">日期:</label>
         <div style="width: 220px;">
@@ -54,7 +50,6 @@
         </button>
       </div>
 
-      <!-- 搜尋匯出按鈕 -->
       <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
         <button type="button" class="btn btn-success text-light" style="white-space: nowrap;" @click="search">
           搜尋
@@ -69,31 +64,36 @@
       </div>
     </form>
 
-    <n-data-table
-      v-show="data?.length > 0"
-      ref="dataTable"
-      :data="data"
-      :columns="column"
-      :pagination="{ pageSize: 15 }"
-      :max-height="600"
-      :scroll-x="1200"
-      :bordered="false"
-      size="small"
-      :single-line="false"
-      striped
-    />
+    <div style="height: calc(100vh - 180px); padding-bottom: 10px; margin-top: 10px;">
+      <n-data-table
+        v-show="data?.length > 0"
+        ref="dataTable"
+        :data="data"
+        :columns="column"
+        :scroll-x="1200"
+        :bordered="false"
+        size="small"
+        :single-line="false"
+        striped
+        flex-height
+        style="height: 100%;"
+        :row-class-name="rowClassName"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, inject, computed } from "vue";
+import { ref, inject, computed, onMounted } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { NDataTable, NSelect } from "naive-ui";
 import OutputExcel from "../../components/OutputExcel.vue";
 import { useUserStore } from "../../stores/userdata";
-// 🚀 引入共用 API
+
+// 🚀 引入 API
 import { getGcpReport } from "@/api/report";
+import { getAllCities } from "@/api/admin";
 
 const ischange = inject("ischange");
 const swal = inject("$swal");
@@ -110,46 +110,48 @@ const data = ref([]);
 const city = ref([]);
 const date = ref([]);
 
-// 🚀 改用 ref，確保 OutputExcel 元件能即時抓到資料變化
 const exceldata = ref([]);
 const excelename = ref("");
 const excelecolumn = ref([]);
 
-// --- 🚀 城市選單 (資料驅動 Computed) ---
-const cityOptions = computed(() => {
-  const map = [
-    { label: "全公司", value: "全公司", auth: [] },
-    { label: "台北市", value: "台北市", auth: [2] },
-    { label: "新北市", value: "新北市", auth: [3] },
-    { label: "桃園市", value: "桃園市", auth: [4] },
-    { label: "新竹市+竹科", value: "新竹市+竹科", auth: [5, 20] }, // 需同時具備 5 與 20
-    { label: "新竹市", value: "新竹市", auth: [5] },
-    { label: "新竹縣", value: "新竹縣", auth: [6] },
-    { label: "竹科", value: "竹科", auth: [20] },
-    { label: "苗栗縣", value: "苗栗縣", auth: [7] },
-    { label: "台中市", value: "台中市", auth: [8] },
-    { label: "彰化縣", value: "彰化縣", auth: [9] },
-    { label: "嘉義市", value: "嘉義市", auth: [12] },
-    { label: "嘉義縣", value: "嘉義縣", auth: [13] },
-    { label: "台南市", value: "台南市", auth: [14] },
-    { label: "高雄市", value: "高雄市", auth: [15] },
-    { label: "屏東縣", value: "屏東縣", auth: [16] },
-    { label: "台東縣", value: "台東縣", auth: [19] },
-  ];
-  return map.filter(c => c.auth.every(a => canusecitys.includes(a)));
+// --- 🚀 城市選單 (API 動態載入) ---
+const cityOptions = ref([]);
+
+const loadCities = async () => {
+  try {
+    const res = await getAllCities();
+    const dbCities = res.data.data || [];
+    
+    // 過濾出 active 且有權限的城市
+    const options = dbCities
+      .filter(c => c.status === 'active' && canusecitys.includes(c.city_id))
+      .map(c => ({
+        label: c.city_name,
+        value: c.city_name 
+      }));
+
+    // 加入全公司選項
+    options.unshift({ label: "全公司", value: "全公司" });
+    cityOptions.value = options;
+
+  } catch (error) {
+    console.error("載入縣市失敗:", error);
+  }
+};
+
+onMounted(() => {
+  loadCities();
 });
 
 const setAllCity = () => { city.value = cityOptions.value.map(c => c.value); };
 
-// --- 🚀 星期一日期選單動態生成 (效能優化版) ---
+// --- 星期一日期選單動態生成 ---
 const dateOptions = computed(() => {
   const arr = [];
-  // 💡 2018-01-01 剛好就是星期一，所以我們直接從這天開始
   let currentMonday = new Date(2018, 0, 1);
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
-  // 🚀 直接每次 +7 天，跳過無效的一天一天檢查，效能提升 7 倍
   while (currentMonday <= now) {
     const y = currentMonday.getFullYear();
     const m = String(currentMonday.getMonth() + 1).padStart(2, "0");
@@ -159,10 +161,15 @@ const dateOptions = computed(() => {
     
     currentMonday.setDate(currentMonday.getDate() + 7);
   }
-  return arr.reverse(); // 最新日期排最上面
+  return arr.reverse();
 });
 
 const setAllDate = () => { date.value = dateOptions.value.map(d => d.value); };
+
+// --- 🚀 斑馬紋樣式 (#e8e8e8) ---
+const rowClassName = (row, index) => {
+  return index % 2 === 1 ? 'gray-row' : '';
+};
 
 // --- 表頭定義 ---
 const column = [
@@ -180,7 +187,6 @@ const column = [
   { key: "item12", align: "center", title: "保險涵蓋率_使用次數(H=G/B)" },
 ];
 
-// --- 準備給 OutputExcel 的資料 ---
 const prepareExcelData = (nowdata, nowcolumn, name) => {
   exceldata.value = [...nowdata];
   excelename.value = name;
@@ -198,11 +204,9 @@ const getData = async () => {
       city: city.value,
     };
 
-    // 🚀 使用抽離的 API
     const res = await getGcpReport(params);
     const saultdata = res.data?.data || [];
 
-    // 🚀 使用 .map 陣列映射防護
     data.value = saultdata.map(i => ({
       item1: i.week_range ?? "",
       item2: i.city ?? "",
@@ -219,8 +223,6 @@ const getData = async () => {
     }));
 
     prepareExcelData(data.value, column, "投保率分析週報");
-    
-    if (dataTable.value?.page) dataTable.value.page(1);
 
   } catch (error) {
     console.error("API Error:", error);
@@ -237,4 +239,14 @@ const search = () => {
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+/* 🚀 灰色行的背景顏色 (#e8e8e8) */
+:deep(.gray-row td) {
+  background-color: #e8e8e8 !important;
+}
+
+/* 滑鼠經過高亮 */
+:deep(.n-data-table .n-data-table-tr.gray-row:hover td) {
+  background-color: #d1d1d1 !important;
+}
+</style>

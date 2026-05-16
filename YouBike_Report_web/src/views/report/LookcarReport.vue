@@ -9,17 +9,14 @@
       <h1 class="report-h1 fw-bold">見車率統計週報</h1>
     </div>
 
-    <!-- 🚀 鐵壁防禦排版：強制單行、不換行、橫向捲軸 -->
     <form
       class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
       style="display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; overflow-x: auto;"
     >
-      <!-- 城市選擇 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
         <div style="width: 120px;">
-          <!-- 🚀 升級為 n-select -->
           <n-select
             v-model:value="city"
             :options="cityOptions"
@@ -28,8 +25,7 @@
         </div>
       </div>
 
-      <!-- 場站選擇 (全選 + 虛擬滾動下拉) -->
-<div style="display: flex; align-items: center; flex-shrink: 0; gap: 12px;">
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 12px;">
         <n-checkbox v-model:checked="stationAll" size="large" style="white-space: nowrap;">
           場站全選
         </n-checkbox>
@@ -50,7 +46,6 @@
         </div>
       </div>
 
-      <!-- 區間選擇 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">區間:</label>
         <div style="width: 120px;">
@@ -62,7 +57,6 @@
         </div>
       </div>
 
-      <!-- 類型選擇 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">類型:</label>
         <div style="width: 180px;">
@@ -76,7 +70,6 @@
         </div>
       </div>
 
-      <!-- 日期選擇 (限制星期一) -->
       <div style="width: 160px; flex-shrink: 0;">
         <n-date-picker
           v-model:formatted-value="timestamp"
@@ -90,34 +83,56 @@
         />
       </div>
 
-      <!-- 按鈕 -->
-      <div style="display: flex; flex-shrink: 0;">
+      <div style="display: flex; gap: 8px; flex-shrink: 0;">
         <button
           type="button"
-          class="btn btn-primary text-light"
+          class="btn btn-success text-light"
           style="white-space: nowrap;"
           @click="search"
         >
-          搜尋匯出
+          搜尋
         </button>
+        <output-excel
+          class="btn btn-primary text-light"
+          style="white-space: nowrap;"
+          :data="exceldata"
+          :name="excelename"
+          :header="excelecolumn"
+        />
       </div>
     </form>
 
-    <!-- 提示區塊 -->
-    <n-result class="mt-5" status="info" title="此頁面只供下載 EXCEL，無網頁資料表預覽">
-    </n-result>
+    <div style="height: calc(100vh - 180px); padding-bottom: 10px; margin-top: 10px;">
+      <n-data-table
+        v-show="totaldata.length > 0"
+        ref="dataTable"
+        size="small"
+        :columns="tableColumns"
+        :data="totaldata"
+        :pagination="{ pageSize: 50 }"
+        :scroll-x="1500"
+        :bordered="false"
+        :single-line="false"
+        striped
+        flex-height
+        style="height: 100%;"
+        :row-class-name="rowClassName"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, inject, watch, computed, onMounted } from "vue";
+import { ref, inject, watch, onMounted } from "vue";
 import { useUserStore } from "../../stores/userdata";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
-import { NDatePicker, NSelect, NResult, NCheckbox } from "naive-ui";
-import * as XLSX from "xlsx";
+import { NDataTable, NDatePicker, NSelect, NCheckbox } from "naive-ui";
+import OutputExcel from "../../components/OutputExcel.vue";
+
 // 🚀 引入共用 API
 import { getGcpReport } from "@/api/report";
+import { getAllCities } from "@/api/admin";
 
 const store = useUserStore();
 const canusecitys = store.citys || [];
@@ -139,11 +154,15 @@ const selectstationvalue = ref([]);
 const options = ref([]);
 
 let StationValue = []; // 儲存所有站點原始資料
+const totaldata = ref([]);
+const tableColumns = ref([]); // 動態表格欄位
+const dataTable = ref(null);
+
 let exceldata = [];
 let excelename = "";
 let excelecolumn = [];
 
-// --- 🚀 區間與類型選項定義 ---
+// --- 區間與類型選項定義 ---
 const intervalOptions = [
   { label: "全天", value: "all_day" },
   { label: "6-24點", value: "6_to_24_hour" }
@@ -156,43 +175,43 @@ const statusOptions = [
   { label: "見位率", value: "見位率" },
 ];
 
-// --- 🚀 城市選單 (資料驅動 Computed) ---
-const cityOptions = computed(() => {
-  const map = [
-    { label: "台北市", value: "台北市", auth: 2 },
-    { label: "新北市", value: "新北市", auth: 3 },
-    { label: "桃園市", value: "桃園市", auth: 4 },
-    { label: "新竹市", value: "新竹市", auth: 5 },
-    { label: "新竹縣", value: "新竹縣", auth: 6 },
-    { label: "竹科", value: "竹科", auth: 20 },
-    { label: "苗栗縣", value: "苗栗縣", auth: 7 },
-    { label: "台中市", value: "台中市", auth: 8 },
-    { label: "嘉義市", value: "嘉義市", auth: 12 },
-    { label: "嘉義縣", value: "嘉義縣", auth: 13 },
-    { label: "台南市", value: "台南市", auth: 14 },
-    { label: "高雄市", value: "高雄市", auth: 15 },
-    { label: "屏東縣", value: "屏東縣", auth: 16 },
-    { label: "台東縣", value: "台東縣", auth: 19 }
-  ];
-  return map.filter(c => canusecitys.includes(c.auth));
-});
+// --- 🚀 城市選單 (由 API 動態載入) ---
+const cityOptions = ref([]);
+
+const loadCities = async () => {
+  try {
+    const res = await getAllCities();
+    const dbCities = res.data.data || [];
+
+    cityOptions.value = dbCities
+      .filter(c => c.status === 'active')
+      .map(c => ({
+        label: c.city_name,
+        value: c.city_name,
+        disabled: !canusecitys.includes(c.city_id)
+      }));
+  } catch (error) {
+    console.error("載入縣市失敗:", error);
+  }
+};
+
+// --- 一灰一白斑馬紋設定 (#e8e8e8) ---
+const rowClassName = (row, index) => {
+  return index % 2 === 1 ? 'gray-row' : '';
+};
 
 // --- 日期防呆 (限制只能選禮拜一，且 >= 2024年) ---
 function disableDate(ts) {
   const date = new Date(ts);
   const now = new Date();
   
-  // 找出本週的星期一
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const day = today.getDay() || 7; // 將日轉為 7
+  const day = today.getDay() || 7; 
   const currentWeekMonday = new Date(today);
   currentWeekMonday.setDate(today.getDate() - day + 1);
 
-  // 條件 1: 禁用本週一以後的日期
   if (date >= currentWeekMonday) return true;
-  // 條件 2: 只能選星期一
   if (date.getDay() !== 1) return true;
-  // 條件 3: 禁用 2024 以前
   if (date.getFullYear() < 2024) return true;
 
   return false;
@@ -215,7 +234,6 @@ watch(city, (newCity) => {
     return;
   }
   
-  // 根據選擇的城市過濾站點
   const arr = StationValue
     .filter(s => newCity.includes(s.city))
     .map(s => ({
@@ -225,13 +243,12 @@ watch(city, (newCity) => {
 
   options.value = arr;
 
-  // 清除不屬於該城市的已選站點
   selectstationvalue.value = selectstationvalue.value.filter(val => 
     newCity.includes(val.split("-")[1])
   );
 });
 
-// --- 產生動態 7 天表頭 ---
+// --- 🚀 產生動態 7 天表頭 (給匯出用) ---
 function getDynamicColumns() {
   const initialDate = new Date(timestamp.value);
   const dateArray = [];
@@ -252,20 +269,31 @@ function getDynamicColumns() {
   ];
 }
 
-// --- 自訂 Excel 匯出邏輯 ---
-const makeExecl = (nowdata, nowcolumn, name) => {
-  if (!nowdata || nowdata.length === 0) {
-    return errorAlert("查詢結果為空，無法匯出");
-  }
-
-  const workbook = XLSX.utils.book_new();
-  // 💡 使用 skipHeader 防止 JSON keys (item1, item3...) 變成表頭
-  const worksheet = XLSX.utils.json_to_sheet(nowdata, { skipHeader: true });
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+// --- 🚀 設定網頁資料表的動態 Columns ---
+function updateTableColumns() {
+  const dynamicHeaders = getDynamicColumns();
   
-  // 💡 將自訂的中文表頭插入第一列 (A1)
-  XLSX.utils.sheet_add_aoa(worksheet, [nowcolumn], { origin: "A1" });
-  XLSX.writeFile(workbook, `${name}.xlsx`);
+  // 對應到 formattedData 裡的 key
+  const keys = [
+    "item1", "item3", "item4", "item5", "item6",
+    "item7", "item8", "item9", "item10", "item11", "item12", "item13",
+    "item14"
+  ];
+
+  tableColumns.value = dynamicHeaders.map((title, index) => ({
+    title: title,
+    key: keys[index],
+    align: "center",
+    width: index < 5 ? 120 : 100, // 前面的欄位稍微寬一點
+    fixed: index < 3 ? 'left' : false // 把「責任區、代號、站名」固定在左側
+  }));
+}
+
+// --- 準備 OutputExcel 元件所需資料 ---
+const makeExecl = (nowdata, dynamicColumns, name) => {
+  exceldata = nowdata;
+  excelename = name;
+  excelecolumn = dynamicColumns;
 };
 
 // --- API 請求與資料處理 ---
@@ -288,11 +316,9 @@ const search = async () => {
       status: category.value,
     };
 
-    // 🚀 使用共用 API，解決 401 問題
     const res = await getGcpReport(params);
     const resdata = res.data?.data || [];
 
-    // 整理成供 Excel 匯出的格式 (保持原本的 item 對應順序)
     const formattedData = resdata.map(element => ({
       item1: element.responsible_area ?? "",
       item3: element.s_no ?? "",
@@ -309,25 +335,40 @@ const search = async () => {
       item14: element.total ?? "",
     }));
 
+    totaldata.value = formattedData;
+    updateTableColumns(); // 建立網頁表格的動態欄位
+
     const dynamicColumns = getDynamicColumns();
     const fileName = `${item.value === "all_day" ? "全天" : "6-24點"}_見車率統計週報`;
 
     makeExecl(formattedData, dynamicColumns, fileName);
 
+    if (dataTable.value) {
+      dataTable.value.page(1);
+    }
+
   } catch (error) {
     console.error("API Error:", error);
-    errorAlert("查詢或匯出失敗，請稍後再試");
+    errorAlert("查詢失敗，請稍後再試");
   } finally {
     isLoading.value = false;
   }
 };
 
-// 🚀 改用 onMounted 進行初始化，取代舊版的立即執行函式
 onMounted(() => {
   getStationData();
+  loadCities();
 });
 </script>
 
 <style scoped>
-/* 避免污染全域 CSS，加上 scoped */
+/* 🚀 灰色行的背景顏色 (#e8e8e8) */
+:deep(.gray-row td) {
+  background-color: #e8e8e8 !important;
+}
+
+/* 確保滑鼠移過去時有回饋顏色 (避免被強制蓋掉) */
+:deep(.n-data-table .n-data-table-tr.gray-row:hover td) {
+  background-color: #d1d1d1 !important;
+}
 </style>

@@ -9,17 +9,14 @@
       <h1 class="report-h1 fw-bold">見車率統計月報</h1>
     </div>
 
-    <!-- 🚀 鐵壁防禦排版：強制單行、不換行、橫向捲軸 -->
     <form
       class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
       style="display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; overflow-x: auto;"
     >
-      <!-- 城市選擇 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
         <div style="width: 120px;">
-          <!-- 🚀 升級為 n-select -->
           <n-select
             v-model:value="city"
             :options="cityOptions"
@@ -28,13 +25,11 @@
         </div>
       </div>
 
-      <!-- 場站選擇 (全選 + 虛擬滾動下拉) -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 12px;">
         <n-checkbox v-model:checked="stationAll" size="large" style="white-space: nowrap;">
           場站全選
         </n-checkbox>
         
-        <!-- 🚀 解決跑版：直接在 el-select-v2 綁定 width: 240px -->
         <el-select-v2
           :disabled="stationAll"
           v-model="selectstationvalue"
@@ -50,7 +45,6 @@
         />
       </div>
 
-      <!-- 區間選擇 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">區間:</label>
         <div style="width: 120px;">
@@ -62,7 +56,6 @@
         </div>
       </div>
 
-      <!-- 類型選擇 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">類型:</label>
         <div style="width: 180px;">
@@ -76,7 +69,6 @@
         </div>
       </div>
 
-      <!-- 月份選擇 -->
       <div style="width: 140px; flex-shrink: 0;">
         <n-date-picker
           v-model:formatted-value="timestamp"
@@ -90,32 +82,54 @@
         />
       </div>
 
-      <!-- 按鈕 -->
-      <div style="display: flex; flex-shrink: 0;">
+      <div style="display: flex; gap: 8px; flex-shrink: 0;">
         <button
           type="button"
-          class="btn btn-primary text-light"
+          class="btn btn-success text-light"
           style="white-space: nowrap;"
           @click="search"
         >
-          搜尋匯出
+          搜尋
         </button>
+        <output-excel
+          class="btn btn-primary text-light"
+          style="white-space: nowrap;"
+          :data="exceldata"
+          :name="excelename"
+          :header="excelecolumn"
+        />
       </div>
     </form>
 
-    <n-result class="mt-5" status="info" title="此頁面只供下載 EXCEL，無網頁資料表預覽"></n-result>
+    <div style="height: calc(100vh - 180px); padding-bottom: 10px; margin-top: 10px;">
+      <n-data-table
+        v-show="totaldata.length > 0"
+        ref="dataTable"
+        size="small"
+        :columns="tableColumns"
+        :data="totaldata"
+        :pagination="{ pageSize: 50 }"
+        :scroll-x="2800" 
+        :bordered="false"
+        :single-line="false"
+        striped
+        flex-height
+        style="height: 100%;"
+        :row-class-name="rowClassName"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, inject, watch, computed, onMounted } from "vue";
+import { ref, inject, watch, onMounted } from "vue";
 import { useUserStore } from "../../stores/userdata";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
-import { NDatePicker, NSelect, NResult, NCheckbox } from "naive-ui";
-import * as XLSX from "xlsx";
-// 🚀 引入共用 API
+import { NDatePicker, NSelect, NCheckbox, NDataTable } from "naive-ui";
+import OutputExcel from "../../components/OutputExcel.vue";
 import { getGcpReport } from "@/api/report";
+import { getAllCities } from "@/api/admin"; 
 
 const store = useUserStore();
 const canusecitys = store.citys || [];
@@ -136,11 +150,15 @@ const selectstationvalue = ref([]);
 const options = ref([]);
 
 let StationValue = [];
+const totaldata = ref([]);
+const tableColumns = ref([]); // 動態表格欄位
+const dataTable = ref(null);
+
 let exceldata = [];
 let excelename = "";
 let excelecolumn = [];
 
-// --- 🚀 月份防呆與預設值優化 ---
+// --- 月份防呆與預設值 ---
 function getPreviousMonth() {
   const d = new Date();
   d.setMonth(d.getMonth() - 1);
@@ -155,13 +173,12 @@ function disableDate(ts) {
   const d = new Date(ts);
   const now = new Date();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const minDate = new Date(2024, 0, 1); // 限制從 2024 年開始
+  const minDate = new Date(2024, 0, 1); 
 
-  // 禁用 2024 以前，以及本月(含)以後的月份
   return d < minDate || d >= currentMonthStart;
 }
 
-// --- 🚀 選項定義 (資料驅動) ---
+// --- 選項定義 ---
 const intervalOptions = [
   { label: "全天", value: "all_day" },
   { label: "6-24點", value: "6_to_24_hour" }
@@ -174,25 +191,30 @@ const statusOptions = [
   { label: "見位率", value: "見位率" }
 ];
 
-const cityOptions = computed(() => {
-  const map = [
-    { label: "台北市", value: "台北市", auth: 2 },
-    { label: "新北市", value: "新北市", auth: 3 },
-    { label: "桃園市", value: "桃園市", auth: 4 },
-    { label: "新竹市", value: "新竹市", auth: 5 },
-    { label: "新竹縣", value: "新竹縣", auth: 6 },
-    { label: "竹科", value: "竹科", auth: 20 },
-    { label: "苗栗縣", value: "苗栗縣", auth: 7 },
-    { label: "台中市", value: "台中市", auth: 8 },
-    { label: "嘉義市", value: "嘉義市", auth: 12 },
-    { label: "嘉義縣", value: "嘉義縣", auth: 13 },
-    { label: "台南市", value: "台南市", auth: 14 },
-    { label: "高雄市", value: "高雄市", auth: 15 },
-    { label: "屏東縣", value: "屏東縣", auth: 16 },
-    { label: "台東縣", value: "台東縣", auth: 19 }
-  ];
-  return map.filter(c => canusecitys.includes(c.auth));
-});
+// --- 城市選單 ---
+const cityOptions = ref([]);
+
+const loadCities = async () => {
+  try {
+    const res = await getAllCities();
+    const dbCities = res.data.data || [];
+
+    cityOptions.value = dbCities
+      .filter(c => c.status === 'active')
+      .map(c => ({
+        label: c.city_name,
+        value: c.city_name, 
+        disabled: !canusecitys.includes(c.city_id)
+      }));
+  } catch (error) {
+    console.error("載入縣市失敗:", error);
+  }
+};
+
+// --- 一灰一白斑馬紋設定 (#e8e8e8) ---
+const rowClassName = (row, index) => {
+  return index % 2 === 1 ? 'gray-row' : '';
+};
 
 // --- 取得場站與連動邏輯 ---
 const getStationData = async () => {
@@ -223,22 +245,40 @@ watch(city, (newCity) => {
   );
 });
 
-// --- 表頭定義 ---
-const dynamicColumns = [
-  "責任區", "場站代號", "站名", "車位數", "狀態",
-  ...Array.from({ length: 31 }, (_, i) => `${i + 1}`), // 自動生成 1~31 天
-  "總計"
-];
+// --- 產生 31 天表頭 ---
+function getDynamicColumns() {
+  return [
+    "責任區", "場站代號", "站名", "車位數", "狀態",
+    ...Array.from({ length: 31 }, (_, i) => `${i + 1}`),
+    "總計"
+  ];
+}
 
-const makeExecl = (nowdata, nowcolumn, name) => {
-  if (!nowdata || nowdata.length === 0) return errorAlert("空資料不能匯出");
+// --- 🚀 設定網頁資料表的動態 Columns ---
+function updateTableColumns() {
+  const dynamicHeaders = getDynamicColumns();
+  
+  // 匹配 formattedData 裡的屬性 key
+  const keys = [
+    "item1", "item3", "item4", "item5", "item6",
+    ...Array.from({ length: 31 }, (_, i) => `item${i + 7}`), // day1~31 對應 item7~item37
+    "item38"
+  ];
 
-  const workbook = XLSX.utils.book_new();
-  // 💡 加上 skipHeader: true，避免 item1, item3 變成第一行
-  const worksheet = XLSX.utils.json_to_sheet(nowdata, { skipHeader: true });
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
-  XLSX.utils.sheet_add_aoa(worksheet, [nowcolumn], { origin: "A1" });
-  XLSX.writeFile(workbook, `${name}.xlsx`);
+  tableColumns.value = dynamicHeaders.map((title, index) => ({
+    title: title,
+    key: keys[index],
+    align: "center",
+    width: index < 5 ? 120 : (index === 36 ? 80 : 60), // 前五欄與總計稍微寬一點，中間日期欄位變窄
+    fixed: index < 3 ? 'left' : false // 固定責任區、場站代號、站名
+  }));
+}
+
+// --- 準備 OutputExcel 參數 ---
+const makeExecl = (nowdata, dynamicColumns, name) => {
+  exceldata = nowdata;
+  excelename = name;
+  excelecolumn = dynamicColumns;
 };
 
 // --- API 請求與資料處理 ---
@@ -261,11 +301,9 @@ const search = async () => {
       station: stationAll.value ? ["all"] : selectstationvalue.value.map(val => parseInt(val.split("-")[0])),
     };
 
-    // 🚀 使用共用 API 發送
     const res = await getGcpReport(params);
     const resdata = res.data?.data || [];
 
-    // 💡 🚀 透過迴圈動態整理 31 天的資料，消滅長達 50 行的 hardcode
     const formattedData = resdata.map(element => {
       const row = {
         item1: element.responsible_area ?? "",
@@ -275,7 +313,6 @@ const search = async () => {
         item6: element.status ?? "",
       };
 
-      // 動態寫入 day1 ~ day31 (對應 item7 ~ item37)
       for (let i = 1; i <= 31; i++) {
         row[`item${i + 6}`] = element[`day${i}`] ?? "";
       }
@@ -284,8 +321,17 @@ const search = async () => {
       return row;
     });
 
+    // 🚀 更新網頁資料表
+    totaldata.value = formattedData;
+    updateTableColumns();
+
+    const dynamicColumns = getDynamicColumns();
     const fileName = `${item.value === "all_day" ? "全天" : "6-24點"}_見車率統計月報`;
     makeExecl(formattedData, dynamicColumns, fileName);
+
+    if (dataTable.value) {
+      dataTable.value.page(1);
+    }
 
   } catch (error) {
     console.error("API Error:", error);
@@ -295,10 +341,20 @@ const search = async () => {
   }
 };
 
-// 🚀 初始化
 onMounted(() => {
   getStationData();
+  loadCities();
 });
 </script>
 
-<style scoped></style>
+<style scoped>
+/* 🚀 灰色行的背景顏色 (#e8e8e8) */
+:deep(.gray-row td) {
+  background-color: #e8e8e8 !important;
+}
+
+/* 確保滑鼠移過去時有回饋顏色 (避免被強制蓋掉) */
+:deep(.n-data-table .n-data-table-tr.gray-row:hover td) {
+  background-color: #d1d1d1 !important;
+}
+</style>

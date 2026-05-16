@@ -3,7 +3,7 @@
     <loading v-model:active="isLoading" :can-cancel="false" :is-full-page="true" />
     
     <div class="row mx-0">
-      <h1 class="report-h1 fw-bold">各專案達成率統計</h1>
+      <h1 class="report-h1 fw-bold">各專案N天以上卡數達成率(每月5號更新資料)</h1>
     </div>
 
     <form

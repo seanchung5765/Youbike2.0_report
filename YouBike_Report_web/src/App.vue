@@ -15,5 +15,6 @@ import { zhTW, dateZhTW } from "naive-ui";
 </template>
 
 <style lang="scss">
-@import "./assets/all.scss";
+// 將 @import 改為 @use
+@use "./assets/all.scss";
 </style>

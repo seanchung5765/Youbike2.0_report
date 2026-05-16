@@ -34,4 +34,19 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  // 👇 幫你加上的 Sass 警告隱藏設定
+  css: {
+    preprocessorOptions: {
+      scss: {
+        api: 'modern-compiler', // 解決 legacy-js-api 警告
+        silenceDeprecations: [
+          'import',
+          'global-builtin',
+          'color-functions',
+          'if-function'
+        ], // 隱藏 Bootstrap 引起的相關警告
+      },
+    },
+  },
+  // 👆 加到這邊結束
 });

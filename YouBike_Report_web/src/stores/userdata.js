@@ -12,8 +12,6 @@ export const useUserStore = defineStore("userdata", () => {
   // 從後端取得該角色的「過濾選單」
   const fetchMenus = async () => {
     try {
-      // 🌟 優化 1：建議換成環境變數，例如 `${import.meta.env.VITE_API_URL}/auth/menus`
-      // 如果你的 axios 有設定 baseURL，這裡甚至可以直接寫 "/auth/menus"
       const res = await getMenus();
       menus.value = res.data.data;
     } catch (error) {
@@ -32,7 +30,6 @@ export const useUserStore = defineStore("userdata", () => {
     });
     
     if (isTokenLife) {
-      
       // 取得解碼後的 payload
       const payload = decodeToken(token.value);
       
@@ -51,7 +48,6 @@ export const useUserStore = defineStore("userdata", () => {
     return false; 
   }
 
-  // 🌟 優化：加上手動清空狀態的 function，登出時可以直接呼叫 store.resetAll()
   function resetAll() {
     userPages.value = [];
     menus.value = [];
@@ -66,7 +62,6 @@ export const useUserStore = defineStore("userdata", () => {
 // --- 下面是輔助解碼的 Function ---
 
 function decodeToken(token) {
-  // 🌟 優化 2：加上 try...catch 防呆
   try {
     const base64Url = token.split(".")[1];
     if (!base64Url) return null;
@@ -79,19 +74,16 @@ function decodeToken(token) {
 }
 
 const getCanUseCity = (payload) => {
-  // 🌟 優化 3：直接存取，不需要跑迴圈
   if (payload && Array.isArray(payload.city_cows)) {
     return payload.city_cows.map(element => element.city_id);
   }
   return [];
 };
 
+// 🚀 核心修正：直接對接後端乾淨的 payload.pages
 const getUsePages = (payload) => {
-  const arr = [];
-  for (const key in payload) {
-    if (payload[key] && payload[key]["page_id"]) {
-      arr.push(Number(payload[key]["page_id"])); 
-    }
+  if (payload && Array.isArray(payload.pages)) {
+    return payload.pages.map(element => Number(element.page_id));
   }
-  return arr;
+  return [];
 };

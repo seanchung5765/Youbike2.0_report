@@ -86,110 +86,96 @@
       </div>
     </form>
 
-    <n-data-table
-      v-show="'item2' in totaldata[0]"
-      ref="dataTable"
-      size="small"
-      :columns="columns"
-      :data="totaldata"
-      :row-class-name="rowClassName"
-      :pagination="{ pageSize: 100 }"
-      :max-height="600"
-      :scroll-x="1000"
-      :bordered="false"
-      :single-line="false"
-      striped
-    />
+    <div style="height: calc(100vh - 180px); padding-bottom: 10px; margin-top: 10px;">
+      <n-data-table
+        v-show="totaldata.length > 0 && Object.keys(totaldata[0]).length > 0"
+        ref="dataTable"
+        size="small"
+        :columns="columns"
+        :data="totaldata"
+        :row-class-name="rowClassName"
+        :pagination="{ pageSize: 100 }"
+        :scroll-x="1000"
+        :bordered="false"
+        :single-line="false"
+        striped
+        flex-height
+        style="height: 100%;"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, inject, computed } from "vue";
+import { ref, inject, computed, onMounted } from "vue";
 import { useUserStore } from "../../stores/userdata";
-import { getGcpReport } from "@/api/report"; 
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import OutputExcel from "../../components/OutputExcel.vue";
-// 🚀 修正 1：補上 NSelect
-import { NDataTable, NDatePicker, NSelect } from "naive-ui"; 
+import { NDataTable, NDatePicker, NSelect } from "naive-ui";
+
+import { getGcpReport } from "@/api/report"; 
+import { getAllCities } from "@/api/admin"; 
 
 const store = useUserStore();
-const canusecitys = store.citys;
+const canusecitys = store.citys || [];
 const ischange = inject("ischange");
 const swal = inject("$swal");
 
-// --- 狀態管理 ---
 const starttimestamp = ref(null);
 const endtimestamp = ref(null);
-// 🚀 修正 2：n-select 的預設值必須是 null 才能顯示 placeholder
 const category = ref(null); 
 const city = ref(null); 
 const isLoading = ref(false);
 const dataTable = ref(null);
-const totaldata = ref([{}]);
+const totaldata = ref([]);
 const columns = ref([]);
 
-// 🚀 修正 3：必須使用 ref，否則傳遞給 OutputExcel 的資料不會更新
 const exceldata = ref([]);
 const excelename = ref("");
 const excelecolumn = ref([]);
 
-// 🚀 修正 4：補上消失的系統別選項
 const sysOptions = ref([
-  { label: '1.0', value: 'daily_report_query1' },
   { label: '2.0', value: 'daily_report_query2' },
   { label: '2.0E', value: 'daily_report_query2E' }
 ]);
 
-const cityMappingConfig = {
-  daily_report_query1: [
-    { value: "Taipei", auth: 2, label: "台北市" },
-    { value: "Newtaipei", auth: 3, label: "新北市" },
-    { value: "Taoyuan", auth: 4, label: "桃園市" },
-    { value: "Hsinchu", auth: 5, label: "新竹市" },
-    { value: "Miaoli", auth: 7, label: "苗栗縣" },
-    { value: "Taichung", auth: 8, label: "台中市" },
-  ],
-  daily_report_query2: [
-    { value: "Taipei2", auth: 2, label: "台北市" },
-    { value: "Newtaipei2", auth: 3, label: "新北市" },
-    { value: "Taoyuan2", auth: 4, label: "桃園市" },
-    { value: "Hsinchu2", auth: 5, label: "新竹市" },
-    { value: "Hsinchu_Country2", auth: 6, label: "新竹縣" },
-    { value: "HsinchuScience2", auth: 20, label: "竹科" },
-    { value: "Miaoli2", auth: 7, label: "苗栗縣" },
-    { value: "Taichung2", auth: 8, label: "台中市" },
-    { value: "Chiayi2", auth: 12, label: "嘉義市" },
-    { value: "Chiayi_Country2", auth: 13, label: "嘉義縣" },
-    { value: "Tainan2", auth: 14, label: "台南市" },
-    { value: "Kaohsiung2", auth: 15, label: "高雄市" },
-    { value: "Pingtung2", auth: 16, label: "屏東縣" },
-    { value: "Taitung2", auth: 19, label: "台東縣" },
-  ],
-  daily_report_query2E: [
-    { value: "Taipei2E", auth: 2, label: "台北市" },
-    { value: "Newtaipei2E", auth: 3, label: "新北市" },
-    { value: "Taoyuan2E", auth: 4, label: "桃園市" },
-    { value: "Hsinchu_Country2E", auth: 6, label: "新竹縣" },
-    { value: "HsinchuScience2E", auth: 20, label: "竹科" },
-    { value: "Miaoli2E", auth: 7, label: "苗栗縣" },
-    { value: "Taichung2E", auth: 8, label: "台中市" },
-    { value: "Chiayi2E", auth: 12, label: "嘉義市" },
-    { value: "Chiayi_Country2E", auth: 13, label: "嘉義縣" },
-    { value: "Tainan2E", auth: 14, label: "台南市" },
-    { value: "Kaohsiung2E", auth: 15, label: "高雄市" },
-    { value: "Pingtung2E", auth: 16, label: "屏東縣" },
-    { value: "Taitung2E", auth: 19, label: "台東縣" },
-  ],
+const dbCities = ref([]);
+
+const loadCities = async () => {
+  try {
+    const res = await getAllCities();
+    const data = res.data.data || [];
+    dbCities.value = data.filter(c => c.status === 'active' && canusecitys.includes(c.city_id));
+  } catch (error) {
+    console.error("載入縣市失敗:", error);
+  }
 };
 
-// 動態過濾城市選項 (因應 category 預設值改為 null，判斷式同步更新)
+// 🚀 終極防呆版城市轉換邏輯
 const availableCityOptions = computed(() => {
-  if (!category.value || !cityMappingConfig[category.value]) return [];
-  return cityMappingConfig[category.value].filter(option => canusecitys.includes(option.auth));
+  if (!category.value) return [];
+  
+  const suffix = category.value === 'daily_report_query2' ? '2' : '2E';
+
+  return dbCities.value.map(c => {
+    // 1. 抓出字串 (防呆處理逗號分隔的情況)
+    let rawCode = c.codes ? c.codes.split(',')[0].trim() : '';
+    
+    // 2. 把字串洗乾淨：不管資料庫存的是 Taipei 還是 Taipei2E，強制移除結尾的 2 或 2E (i代表不分大小寫)
+    let cleanBaseCode = rawCode.replace(/2E$/i, '').replace(/2$/i, '');
+    
+    return {
+      label: c.city_name,
+      value: cleanBaseCode + suffix // 3. 確保一定是乾淨的 Base + 正確的 Suffix (保證產出 Taipei2 或 Taipei2E)
+    };
+  }).filter(c => c.value !== '2' && c.value !== '2E'); // 避免空字串變成純後綴
 });
 
-// --- UI 輔助方法 ---
+onMounted(() => {
+  loadCities();
+});
+
 const NotCityAlert = (text) => {
   swal({ icon: "error", title: text, showConfirmButton: false, timer: 1500 });
 };
@@ -199,7 +185,6 @@ const cleardate = () => {
   endtimestamp.value = null;
 };
 
-// --- 日期選擇器限制 ---
 const getMidnightDate = (dateString) => {
   const date = new Date(dateString);
   date.setHours(0, 0, 0, 0);
@@ -234,7 +219,24 @@ const disableEndDate = (ts) => {
   return selectedDate >= currentDate;
 };
 
-// --- 表格與 Excel 生成 ---
+const rowClassName = (row, index) => {
+  const highlightItems = [
+    "場站資訊", "租借資訊", "收入資訊", "妥善率資訊", "票卡資訊", 
+    "各時段使用資訊", "租賃收入明細", "營運資訊", "租賃時間使用資訊", 
+    "調度管理", "騎乘距離分析", "維護管理"
+  ];
+  
+  if (
+    highlightItems.includes(row.item1) ||
+    (row.item1 === "當日租借車次" && !row.item2) ||
+    (row.item1 === "註冊票卡淨增加數" && !row.item2 && row.item2 !== 0)
+  ) {
+    return "too-old";
+  }
+  
+  return index % 2 === 1 ? 'gray-row' : '';
+};
+
 const makeExecl = (nowdata, nowcolumn, name) => {
   exceldata.value = [...nowdata];
   excelename.value = name;
@@ -262,23 +264,31 @@ const getData = async () => {
   try {
     isLoading.value = true;
     const res = await getGcpReport(params);
-    const resdata = res.data.data;
+    const resdata = res.data?.data || [];
     
+    // 🚀 防呆機制：如果 GCP 真的找不到這幾天的資料，給予提示並中斷，避免 Vue 報錯白畫面
+    if (resdata.length === 0) {
+      totaldata.value = [];
+      NotCityAlert("該區間查無資料");
+      return;
+    }
+
     makecol(resdata);
 
-    // 資料轉置：略過每個陣列的前三個元素 (index 0, 1, 2)
     const columnLength = resdata[0].length - 3;
     const transposedData = Array.from({ length: columnLength }, () => ({}));
 
     resdata.forEach((items, colIndex) => {
       items.forEach((item, rowIndex) => {
-        if (rowIndex < 3) return; // 跳過不需要的屬性
+        if (rowIndex < 3) return; 
         transposedData[rowIndex - 3][`item${colIndex + 1}`] = item;
       });
     });
 
     totaldata.value = transposedData;
     makeExecl(totaldata.value, columns.value, "營運管理日報");
+
+    if (dataTable.value?.page) dataTable.value.page(1);
 
   } catch (error) {
     console.error("獲取日報資料失敗:", error);
@@ -289,7 +299,6 @@ const getData = async () => {
 };
 
 const search = () => {
-  // 因應預設值為 null，驗證邏輯同步更新
   if (!category.value) return NotCityAlert("請選擇系統");
   if (!city.value) return NotCityAlert("請選擇城市");
   if (!starttimestamp.value) return NotCityAlert("請選擇開始日期");
@@ -297,20 +306,29 @@ const search = () => {
   
   getData();
 };
-
-const rowClassName = (row) => {
-  const highlightItems = [
-    "場站資訊", "租借資訊", "收入資訊", "妥善率資訊", "票卡資訊", 
-    "各時段使用資訊", "租賃收入明細", "營運資訊", "租賃時間使用資訊", 
-    "調度管理", "騎乘距離分析", "維護管理"
-  ];
-  
-  if (
-    highlightItems.includes(row.item1) ||
-    (row.item1 === "當日租借車次" && !row.item2) ||
-    (row.item1 === "註冊票卡淨增加數" && !row.item2 && row.item2 !== 0)
-  ) {
-    return "too-old";
-  }
-};
 </script>
+
+<style scoped>
+/* 🚀 灰色行的背景顏色 (#e8e8e8) */
+:deep(.gray-row td) {
+  background-color: #e8e8e8 !important;
+}
+
+/* 斑馬紋滑鼠經過高亮 */
+:deep(.n-data-table .n-data-table-tr.gray-row:hover td) {
+  background-color: #d1d1d1 !important;
+}
+
+/* 🚀 這是你原本寫在 JS 的 too-old (分類大標題高亮) */
+:deep(.too-old td) {
+  background-color: #ffe699 !important; /* 給個明顯的黃色系背景突顯大標題 */
+  font-weight: bold !important;
+}
+
+:deep(.n-data-table .n-data-table-tr.too-old:hover td) {
+  background-color: #ffd966 !important;
+}
+
+
+
+</style>

@@ -11,26 +11,39 @@
         show-trigger="bar"
         bordered
       >
-        <n-menu
-          :options="dynamicMenuOptions"
-          :collapsed-icon-size="22"
-          :value="routeValue"
-          class="fw-bold"
-        />
-        <div class="text-center mb-3">
-          <n-switch :rail-style="railStyle" @update:value="handleChange">
-            <template #checked> 暗暗模式 </template>
-            <template #unchecked> 亮亮模式 </template>
-          </n-switch>
-        </div>
-        <n-dropdown trigger="click" :options="options">
-          <div class="text-center">
-            <Icon size="30">
-              <IosSettings></IosSettings>
-            </Icon>
+        <div style="display: flex; flex-direction: column; height: 100%;">
+          
+          <n-dropdown trigger="click" :options="options">
+            <div class="user-profile text-center py-4">
+              <Icon size="24" class="text-primary">
+                <User />
+              </Icon>
+              <div class="fw-bold mt-2">{{ store.userId || store.account || '工號' }}</div>
+            </div>
+          </n-dropdown>
+
+          <div style="flex: 1; overflow-y: auto; overflow-x: hidden;">
+            <n-menu
+              :options="dynamicMenuOptions"
+              :collapsed-icon-size="22"
+              :value="routeValue"
+              class="fw-bold"
+            />
           </div>
-        </n-dropdown>
+
+          <div class="text-center py-3 pb-4">
+            <!--<n-switch :rail-style="railStyle" @update:value="handleChange">
+              <template #checked> 暗暗模式 </template>
+              <template #unchecked> 亮亮模式 </template>
+            </n-switch>-->
+            <div class="mt-2 fw-bold" style="font-size: 12px; color: #888; letter-spacing: 1px;">
+              v2.0.0
+            </div>
+          </div>
+
+        </div>
       </n-layout-sider>
+      
       <n-layout-content content-style="padding: 24px;">
         <slot></slot>
       </n-layout-content>
@@ -48,10 +61,9 @@ import {
 } from "naive-ui";
 // 引入所有你會用到的 Icon
 import { Home, ChatboxEllipsesSharp } from "@vicons/ionicons5";
-import { IosSettings } from "@vicons/ionicons4";
 import { Book, User, Gift, MailBulk } from "@vicons/fa";
 import { Icon } from "@vicons/utils";
-import { Report, Account } from "@vicons/carbon";
+import { Report } from "@vicons/carbon";
 
 const router = useRouter();
 const route = useRoute();
@@ -94,30 +106,25 @@ const buildNaiveMenu = (menuData) => {
   return menuData.map(item => {
     // 基本架構
     const currentItem = {
-      // 一律使用資料庫的 id 當作唯一 Key
       key: String(item.id),
-      // 去資料庫找 icon_code，如果找不到就用預設的
       icon: item.icon_code ? renderIcon(iconMap[item.icon_code]) : undefined,
     };
 
     if (item.children && item.children.length > 0) {
-      // 如果有子選單，代表它是一個目錄
       currentItem.label = item.name;
       currentItem.children = buildNaiveMenu(item.children);
     } else {
-      // 如果沒有子選單，代表它是實際頁面，套用 RouterLink
-      // 加上 fallback 防呆，如果真的沒路由就回首頁
       currentItem.label = () =>
         h(RouterLink, { to: { path: item.route_code || '/' } }, { default: () => item.name });
     }
     return currentItem;
   });
 };
+
 // 使用 computed 讓選單隨時保持最新狀態
 const dynamicMenuOptions = computed(() => {
   const backendMenus = store.menus || [];
   
-  // 你可以把「首頁」這類固定的東西手動加在最前面
   const defaultMenu = [
     {
       label: () => h(RouterLink, { to: { path: "/" } }, { default: () => "首頁" }),
@@ -128,14 +135,14 @@ const dynamicMenuOptions = computed(() => {
 
   const generatedMenus = buildNaiveMenu(backendMenus);
   
-  // 組合起來：首頁 + 後端動態選單
   return [...defaultMenu, ...generatedMenus];
 });
 // ---------------------------------
 
+// 下拉選單：包含登出按鈕
 const options = [
   {
-    label: "登出",
+    label: "登出系統",
     key: "logout",
     props: {
       onClick: () => {
@@ -170,5 +177,14 @@ const railStyle = ({ focused, checked }) => {
 <style>
 .n-menu-item-content__icon {
   margin-bottom: 5px;
+}
+
+/* 🚀 使用者名稱區塊的 Hover 互動效果 */
+.user-profile {
+  cursor: pointer;
+  transition: opacity 0.2s ease-in-out;
+}
+.user-profile:hover {
+  opacity: 0.7;
 }
 </style>

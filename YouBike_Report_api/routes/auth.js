@@ -9,8 +9,9 @@ const isAuth = require('../middleware/isAuth');
 router.post("/login", async (req, res, next) => {
   const { account, password } = req.body;
 
+  // 1. 修正：更直覺的防呆提示
   if (!account || !password) {
-    return appError(403, "帳號密碼格式錯誤", next);
+    return appError(400, "帳號與密碼不能為空", next);
   }
 
   try {
@@ -19,7 +20,8 @@ router.post("/login", async (req, res, next) => {
       await bindAsync(account, password);
       await closeAsync();
     } catch (error) {
-      return appError(403, `帳號密碼錯誤: ${error.message}`, next);
+      // 2. 修正：避免伺服器斷線時誤導使用者
+      return appError(401, `登入失敗，請確認帳密是否正確 (${error.message})`, next);
     }
 
     // 2. 從 Cloud SQL 取得使用者權限資料
@@ -30,52 +32,39 @@ router.post("/login", async (req, res, next) => {
       let userId = null;
       let roleId = null;
 
-      // 是否為 .env 指定的交接管理員 (免建檔直接放行)
       if (account === superAdminEnv) {
         isSuperAdmin = true;
       } else {
-        // 查詢資料庫中的真實身分
         const userRows = await useGCPMysql(
           "SELECT id, role_id FROM users WHERE emp_id = ? AND is_active = 1",
           [account]
         );
 
         if (userRows.length === 0) {
-          return appError(403, "此帳號尚未在報表系統中建立權限", next);
+          // 這個提示很正常，代表員工在職但尚未被開通報表系統權限
+          return appError(403, "此帳號尚未在報表系統中開通權限，請聯繫管理員", next);
         }
 
         userId = userRows[0].id;
         roleId = userRows[0].role_id;
-
-        // 如果資料庫設定的角色是 1，也視為超級管理員
-        if (roleId === 1) {
-          isSuperAdmin = true;
-        }
+        if (roleId === 1) isSuperAdmin = true;
       }
 
-      // 超級管理員：賦予全站權限
+      // 3. 修正 💣 炸彈：將權限資料用明確的 key (pages) 包裝，而不是展開陣列
       if (isSuperAdmin) {
         console.log(`[系統提示] 超級管理員 ${account} 登入，自動授予全站權限！`);
-        
-        // 直接抓取所有的城市
         const allCities = await useGCPMysql("SELECT id as city_id FROM regions");
-        // 直接抓取所有的選單 (排除 route_code 是 NULL 的資料夾)
         const allPages = await useGCPMysql("SELECT id as page_id FROM system_menus WHERE route_code IS NOT NULL");
         
         userPayload = {
-          ...allPages,
-          city_cows: allCities
+          pages: allPages,       // ✅ 正確寫法
+          city_cows: allCities   // ✅ 正確寫法
         };
-      } 
-      // 普通使用者：依據關聯表給予權限
-      else {
-        // 抓取被分配到的城市
+      } else {
         const city_cows = await useGCPMysql(
           "SELECT region_id as city_id FROM user_regions WHERE user_id = ?",
           [userId]
         );
-
-        // 抓取被分配到的選單 (JOIN 排除 route_code 是 NULL 的資料夾)
         const queryPages = `
           SELECT DISTINCT rp.menu_id as page_id 
           FROM role_menu_permissions rp
@@ -86,13 +75,14 @@ router.post("/login", async (req, res, next) => {
         const pageRows = await useGCPMysql(queryPages, [roleId]);
 
         userPayload = {
-          ...pageRows,
-          city_cows: city_cows
+          pages: pageRows,       // ✅ 正確寫法
+          city_cows: city_cows   // ✅ 正確寫法
         };
       }
     } catch (error) {
       console.error("Cloud SQL 讀取失敗:", error);
-      return appError(403, "讀取權限資料錯誤", next);
+      // 4. 修正：資料庫出錯應該是 500 伺服器錯誤
+      return appError(500, "資料庫讀取權限發生異常，請稍後再試", next);
     }
 
     // 3. 簽發 JWT
@@ -101,24 +91,21 @@ router.post("/login", async (req, res, next) => {
       expiresIn: "8h",
     });
 
-    // 🌟 4. 新增：記錄最後登入時間 
+    // 4. 記錄最後登入時間
     try {
-      // 使用 MySQL 內建的 NOW() 函數寫入當下時間
       await useGCPMysql(
         "UPDATE users SET last_login_at = NOW() WHERE emp_id = ?",
         [account]
       );
     } catch (dbErr) {
-      // 若只是時間更新失敗，不影響使用者的正常登入，所以印出錯誤但不阻擋流程
       console.error(`更新 ${account} 登入時間失敗:`, dbErr);
     }
 
-    // 🌟 5. 最後才統一回傳給前端 (把原本重複的那行刪掉了)
     res.status(200).json({ message: "成功登入", token });
 
   } catch (error) {
     console.error("登入流程異常:", error);
-    return appError(500, "系統錯誤", next);
+    return appError(500, "系統發生未知的錯誤", next);
   }
 });
 
@@ -131,40 +118,49 @@ router.get('/menus', isAuth, async (req, res) => {
     let query = "";
     let params = [];
 
-    // 1. 檢查登入者的角色
     const userRows = await useGCPMysql("SELECT role_id FROM users WHERE emp_id = ? AND is_active = 1", [empId]);
     const roleId = userRows.length > 0 ? userRows[0].role_id : null;
 
     if (empId === superAdminEnv || roleId === 1) {
-      // 【超級管理員】直接撈出全站「所有」選單
+      // 【超級管理員】
       query = `
         SELECT id, parent_id, name, route_code, icon_code, sort_order 
         FROM system_menus 
+        WHERE is_active = 1  -- 🚀 新增：超級管理員也只看啟用的選單
         ORDER BY parent_id ASC, sort_order ASC
       `;
       params = [];
     } else {
-      // 【一般模式】過濾他有權限的子頁面，以及對應的父資料夾
+      // 【一般模式】
       query = `
         SELECT id, parent_id, name, route_code, icon_code, sort_order 
         FROM system_menus 
-        WHERE id IN (
-          -- 1. 直接有權限的頁面
-          SELECT menu_id FROM role_menu_permissions WHERE role_id = ?
-        ) OR id IN (
-          -- 2. 這些頁面的父目錄 (避免選單斷層)
-          SELECT parent_id FROM system_menus WHERE id IN (
-            SELECT menu_id FROM role_menu_permissions WHERE role_id = ?
+        WHERE is_active = 1  -- 🚀 新增：先過濾出啟用的選單，再去比對權限
+          AND (
+            id IN (
+              SELECT menu_id FROM role_menu_permissions WHERE role_id = ?
+            ) OR id IN (
+              SELECT parent_id FROM system_menus WHERE id IN (
+                SELECT menu_id FROM role_menu_permissions WHERE role_id = ?
+              )
+            ) OR id IN (
+              SELECT parent_id FROM system_menus WHERE id IN (
+                SELECT parent_id FROM system_menus WHERE id IN (
+                  SELECT menu_id FROM role_menu_permissions WHERE role_id = ?
+                )
+              )
+            )
           )
-        )
         ORDER BY parent_id ASC, sort_order ASC
       `;
-      params = [roleId, roleId];
+      params = [roleId, roleId, roleId];
     }
+
+    // ... 下方將扁平資料轉 Tree 的邏輯保持不變 ...
 
     const rows = await useGCPMysql(query, params);
 
-    // 2. 將扁平資料轉換為 Vue 要的樹狀結構 (Tree)
+    // 將扁平資料轉換為 Vue 樹狀結構
     const menuMap = {};
     const tree = [];
     

@@ -5,13 +5,11 @@
       <h1 class="report-h1 fw-bold">YouBike2.0 騎乘時間查詢</h1>
     </div>
 
-    <!-- 🚀 鐵壁防禦排版：強制單行、不換行、橫向捲軸 -->
     <form
       class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
       style="display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; overflow-x: auto;"
     >
-      <!-- 系統別 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">系統別:</label>
         <div style="width: 100px;">
@@ -19,7 +17,6 @@
         </div>
       </div>
 
-      <!-- 城市 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
         <div style="width: 140px;">
@@ -27,7 +24,6 @@
         </div>
       </div>
 
-      <!-- 項目 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">項目:</label>
         <div style="width: 160px;">
@@ -35,7 +31,6 @@
         </div>
       </div>
 
-      <!-- 日期區間 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; border-left: 2px solid #ccc; padding-left: 12px;">
         <div style="width: 140px;">
           <n-date-picker v-model:formatted-value="starttimestamp" type="date" value-format="yyyy-MM-dd" placeholder="開始日期" :is-date-disabled="disableStartDate" clearable />
@@ -46,7 +41,6 @@
         </div>
       </div>
 
-      <!-- 按鈕群組 -->
       <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
         <button type="button" class="btn btn-info text-light" style="white-space: nowrap;" @click="cleardate">清空日期</button>
         <button type="button" class="btn btn-success text-light" style="white-space: nowrap;" @click="search">搜尋</button>
@@ -60,31 +54,35 @@
       </div>
     </form>
 
-    <n-data-table
-      v-show="data.length > 0"
-      ref="dataTable"
-      size="small"
-      :data="data"
-      :columns="columnDefs"
-      :pagination="{ pageSize: 15 }"
-      :max-height="600"
-      :scroll-x="800"
-      :bordered="false"
-      :single-line="false"
-      striped
-    />
+    <div style="height: calc(100vh - 180px); padding-bottom: 10px; margin-top: 10px;">
+      <n-data-table
+        v-show="data.length > 0"
+        ref="dataTable"
+        size="small"
+        :data="data"
+        :columns="columnDefs"
+        :scroll-x="800"
+        :bordered="false"
+        :single-line="false"
+        striped
+        flex-height
+        style="height: 100%;"
+        :row-class-name="rowClassName"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, inject, computed } from "vue";
+import { ref, inject, computed, onMounted } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { useUserStore } from "../../stores/userdata";
 import { NDataTable, NDatePicker, NSelect } from "naive-ui";
 import OutputExcel from "../../components/OutputExcel.vue";
-// 🚀 引入共用 API
+// 🚀 引入 API
 import { getGcpReport } from "@/api/report";
+import { getAllCities } from "@/api/admin";
 
 const store = useUserStore();
 const canusecitys = store.citys || [];
@@ -104,12 +102,11 @@ const endtimestamp = ref(null);
 const data = ref([]);
 const dataTable = ref(null);
 
-// 🚀 Excel 響應式變數
 const exceldata = ref([]);
 const excelename = ref("");
 const excelecolumn = ref([]);
 
-// --- 🚀 選單選項 (資料驅動) ---
+// --- 選單選項 ---
 const categoryOptions = [
   { label: "2.0", value: "2.0" },
   { label: "2.0E", value: "2.0E" }
@@ -120,19 +117,34 @@ const itemOptions = [
   { label: "跨站借還", value: "跨站借還" }
 ];
 
-const cityOptions = computed(() => {
-  if (!category.value) return [];
-  const map = [
-    { label: "台北市", value: "台北市", auth: 2 }, { label: "新北市", value: "新北市", auth: 3 },
-    { label: "桃園市", value: "桃園市", auth: 4 }, { label: "新竹市", value: "新竹市", auth: 5 },
-    { label: "新竹縣", value: "新竹縣", auth: 6 }, { label: "竹科", value: "竹科", auth: 20 },
-    { label: "苗栗縣", value: "苗栗縣", auth: 7 }, { label: "台中市", value: "台中市", auth: 8 },
-    { label: "嘉義市", value: "嘉義市", auth: 12 }, { label: "嘉義縣", value: "嘉義縣", auth: 13 },
-    { label: "台南市", value: "台南市", auth: 14 }, { label: "高雄市", value: "高雄市", auth: 15 },
-    { label: "屏東縣", value: "屏東縣", auth: 16 }, { label: "台東縣", value: "台東縣", auth: 19 }
-  ];
-  return map.filter(c => canusecitys.includes(c.auth));
+// --- 🚀 城市選單 (API 動態載入) ---
+const cityOptions = ref([]);
+
+const loadCities = async () => {
+  try {
+    const res = await getAllCities();
+    const dbCities = res.data.data || [];
+    
+    // 依據資料庫結果及登入者權限自動長出選單
+    cityOptions.value = dbCities
+      .filter(c => c.status === 'active' && canusecitys.includes(c.city_id))
+      .map(c => ({
+        label: c.city_name,
+        value: c.city_name 
+      }));
+  } catch (error) {
+    console.error("載入縣市失敗:", error);
+  }
+};
+
+onMounted(() => {
+  loadCities();
 });
+
+// --- 🚀 斑馬紋樣式 (#e8e8e8) ---
+const rowClassName = (row, index) => {
+  return index % 2 === 1 ? 'gray-row' : '';
+};
 
 // --- 表頭定義 ---
 const columnDefs = [
@@ -144,7 +156,7 @@ const columnDefs = [
   { key: "num6", align: "center", title: "次數" },
 ];
 
-// --- 🚀 日期防呆 (限制 30 天) ---
+// --- 日期防呆 (限制 30 天) ---
 const MIN_DATE = new Date(2023, 0, 1).getTime();
 const getTodayStart = () => new Date().setHours(0, 0, 0, 0);
 
@@ -153,7 +165,7 @@ const disableEndDate = (ts) => ts < MIN_DATE || ts >= getTodayStart() || (startt
 
 const cleardate = () => { starttimestamp.value = null; endtimestamp.value = null; };
 
-// --- 🚀 API 請求與資料處理 ---
+// --- API 請求與資料處理 ---
 const getData = async () => {
   try {
     isLoading.value = true;
@@ -162,6 +174,7 @@ const getData = async () => {
       table_id: "rent_minute_report2",
       begin_date: starttimestamp.value,
       end_date: endtimestamp.value,
+      // 🚀 城市名稱 (e.g. 台北市) + 系統別 (e.g. 2.0) = "台北市2.0" 送出給 GCP
       city: `${city.value}${category.value}`,
       item: optionsvalue.value,
     };
@@ -169,12 +182,11 @@ const getData = async () => {
     const res = await getGcpReport(params);
     const rawData = res.data?.data || [];
 
-    // 🚀 資料合併與轉換邏輯 (Grouping)
+    // 資料合併與轉換邏輯 (Grouping 保留原有邏輯)
     const processed = [];
     rawData.forEach((element) => {
       const last = processed[processed.length - 1];
       
-      // 判斷是否與上一筆相同 (需要合併次數)
       const isSameGroup = last && 
         last.num2 === element.SxPSArea && 
         last.num3 === element.same_station && 
@@ -202,8 +214,6 @@ const getData = async () => {
     excelename.value = "yb2騎乘時間查詢";
     excelecolumn.value = columnDefs.map(c => c.title);
 
-    if (dataTable.value?.page) dataTable.value.page(1);
-
   } catch (error) {
     console.error("API Error:", error);
     NotCityAlert("查詢失敗，請稍後再試");
@@ -220,3 +230,15 @@ const search = () => {
   getData();
 };
 </script>
+
+<style scoped>
+/* 🚀 灰色行的背景顏色 (#e8e8e8) */
+:deep(.gray-row td) {
+  background-color: #e8e8e8 !important;
+}
+
+/* 滑鼠經過高亮 */
+:deep(.n-data-table .n-data-table-tr.gray-row:hover td) {
+  background-color: #d1d1d1 !important;
+}
+</style>

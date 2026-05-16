@@ -34,4 +34,9 @@ app.use((err, req, res, next) => {
   });
 });
 
+const port = process.env.PORT || 3000;
+app.listen(port, '0.0.0.0', () => {
+  console.log(`[YouBike Report API] 伺服器成功啟動在 Port: ${port}`);
+});
+
 module.exports = app;

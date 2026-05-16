@@ -41,7 +41,7 @@
 
     <div class="mx-3 mt-3">
       <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-        <h4 class="fw-bold mb-2 mb-md-0">目前擁有權限的使用者清單</h4>
+        <h4 class="fw-bold mb-2 mb-md-0">目前擁有權限的清單</h4>
         <div style="max-width: 300px; width: 100%;">
           <input 
             type="text" 
@@ -56,19 +56,21 @@
         <table class="table table-hover table-bordered align-middle text-center">
           <thead class="table-dark">
             <tr>
+              <th scope="col" style="width: 5%">序號</th>
               <th scope="col" style="width: 15%">姓名</th>
               <th scope="col" style="width: 15%">工號</th>
-              <th scope="col" style="width: 40%">角色狀態</th>
+              <th scope="col" style="width: 35%">角色</th>
               <th scope="col" style="width: 30%">操作</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="filteredPermissionUsers.length === 0">
-              <td colspan="4" class="text-muted py-3">
+              <td colspan="5" class="text-muted py-3">
                 {{ localSearchQuery ? '找不到符合關鍵字的使用者' : '目前沒有擁有權限的使用者' }}
               </td>
             </tr>
-            <tr v-for="item in filteredPermissionUsers" :key="item.users_id">
+            <tr v-for="(item, index) in filteredPermissionUsers" :key="item.users_id">
+              <td class="fw-bold text-muted">{{ index + 1 }}</td>
               <td class="fw-bold">{{ item.name }}</td>
               <td>{{ item.users_id }}</td>
               
@@ -148,7 +150,7 @@ const permissionUsers = ref([]);
 const searchvalue = ref(null);
 const localSearchQuery = ref("");
 
-const showAlert = (icon, text) => swal({ icon, title: text, showConfirmButton: false });
+const showAlert = (icon, text) => swal({ icon, title: text, showConfirmButton: false, timer: 1500 });
 
 const filteredPermissionUsers = computed(() => {
   if (!localSearchQuery.value) {
@@ -179,19 +181,18 @@ const getdata = async () => {
     const me = allUsers.find(u => u.users_id === myEmpId);
     const isSuperAdmin = me && me.role_name === superRoleName;
 
-    // 🌟 1. 給「下拉選單」用的名單：保留所有 LDAP 的人，但非超管不能看到自己
+    // 給「下拉選單」用的名單：保留所有 LDAP 的人，但非超管不能看到自己
     const searchableUsers = allUsers.filter(u => {
       if (!isSuperAdmin && u.users_id === myEmpId) return false;
       return true;
     });
 
     option.value = searchableUsers.map((element) => ({
-      // 如果有角色就括號顯示，沒有就顯示無角色
       label: `${element.name}_${element.users_id} ${element.role_name && element.role_name.trim() !== '' ? '('+element.role_name+')' : ''}`,
       value: element.users_id,
     }));
 
-    // 🌟 2. 給「下方表格」用的名單：必須是已經有設定權限的人
+    // 給「下方表格」用的名單：必須是已經有設定權限的人
     const tableUsers = searchableUsers.filter(u => {
       const hasRole = u.role_name && u.role_name.trim() !== "";
       return hasRole;
@@ -237,6 +238,8 @@ const search = async () => {
     }
 
     const userData = res.data.data[0];
+    
+    // 🚀 新增的人會被推到最上面 (序號 1)，方便立刻編輯
     permissionUsers.value.unshift({
       ...userData,
       edit_role_id: "", 
@@ -271,7 +274,7 @@ const deleteRow = async (item) => {
     showCancelButton: true,
     confirmButtonColor: "#d33",
     cancelButtonColor: "#3085d6",
-    confirmButtonText: "確定刪除",
+    confirmButtonText: "刪除",
     cancelButtonText: "取消"
   });
 
@@ -280,7 +283,10 @@ const deleteRow = async (item) => {
       isLoading.value = true;
       await deleteUser(item.users_id);
       showAlert("success", "已成功刪除該使用者紀錄");
-      await getdata();
+      
+      // 🚀 核心修改：刪除後只從前端陣列中移除他，不觸發 getdata() 刷掉其他人
+      permissionUsers.value = permissionUsers.value.filter(u => u.users_id !== item.users_id);
+      
     } catch (error) {
       console.error(error);
       showAlert("error", "刪除失敗");
@@ -298,7 +304,12 @@ const confirmRow = async (item) => {
     const payload = { role: item.edit_role_id, name: item.name };
     await updateUserRole(item.users_id, payload);
     showAlert("success", "角色修改成功");
-    await getdata(); 
+
+    // 🚀 核心修改：確認後不觸發 getdata()，直接把前端這筆資料轉成非編輯狀態
+    const matchedRole = roles.value.find(r => r.role_id === item.edit_role_id);
+    item.role_name = matchedRole ? matchedRole.role_name : "";
+    item.isEditing = false;
+    
   } catch (error) {
     console.error(error);
     showAlert("error", "修改失敗");

@@ -1,10 +1,29 @@
-# 第一層：大廚房，工具齊全
-FROM node:20-alpine as build-stage
+# Stage 1: 編譯前端靜態檔案
+FROM node:20-alpine AS build-stage
 WORKDIR /app
+COPY package*.json ./
+RUN npm install
 COPY . .
-RUN npm install && npm run build
 
-# 第二層：小餐車，只裝成品
+# 解除記憶體封印，安心打包
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
+
+# Stage 2: 使用 Nginx 啟動正式環境
 FROM nginx:alpine
-# 🚀 關鍵動作：只把成品（dist）搬過來，其餘的 Node.js 垃圾都丟掉
+# 複製編譯好的檔案到 Nginx 目錄
 COPY --from=build-stage /app/dist /usr/share/nginx/html
+
+# 覆蓋 Nginx 設定，支援 Vue Router 的 History 模式防止 F5 404
+RUN echo 'server { \
+    listen 80; \
+    location / { \
+        root /usr/share/nginx/html; \
+        index index.html index.htm; \
+        try_files $uri $uri/ /index.html; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+# 🚀 終極魔法：啟動容器前，利用 envsubst 替換環境變數，生成真正的 config.js，然後才啟動 Nginx
+CMD ["/bin/sh", "-c", "envsubst < /usr/share/nginx/html/config.template.js > /usr/share/nginx/html/config.js && nginx -g 'daemon off;'"]

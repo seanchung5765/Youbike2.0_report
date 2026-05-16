@@ -65,31 +65,36 @@
       </div>
     </form>
 
-    <n-data-table
-      v-show="totaldata.length > 0 && totaldata[0].item1"
-      ref="dataTable"
-      size="small"
-      :row-class-name="rowClassName"
-      :pagination="{ pageSize: 100 }"
-      :columns="columns"
-      :data="totaldata"
-      :max-height="600"
-      :scroll-x="1000"
-      :bordered="false"
-      :single-line="false"
-      striped
-    />
+    <div style="height: calc(100vh - 180px); padding-bottom: 10px; margin-top: 10px;">
+      <n-data-table
+        v-show="totaldata.length > 0 && totaldata[0].item1"
+        ref="dataTable"
+        size="small"
+        :row-class-name="rowClassName"
+        :pagination="{ pageSize: 100 }"
+        :columns="columns"
+        :data="totaldata"
+        :scroll-x="1200"
+        :bordered="false"
+        :single-line="false"
+        striped
+        flex-height
+        style="height: 100%;"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, inject, computed } from "vue";
+import { ref, inject, computed, onMounted } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { useUserStore } from "../../stores/userdata";
 import { NDataTable, NDatePicker, NSelect } from "naive-ui";
 import OutputExcel from "../../components/OutputExcel.vue";
 import { getGcpReport } from "@/api/report";
+// 🚀 引入 API
+import { getAllCities } from "@/api/admin";
 
 const store = useUserStore();
 const canusecitys = store.citys || [];
@@ -97,7 +102,7 @@ const ischange = inject("ischange");
 const swal = inject("$swal");
 
 async function NotCityAlert(text) {
-  swal({ icon: "error", title: text, showConfirmButton: false });
+  swal({ icon: "error", title: text, showConfirmButton: false, timer: 1500 });
 }
 
 // --- 狀態管理 ---
@@ -109,47 +114,51 @@ const totaldata = ref([]);
 const columns = ref([]);
 const excelName = ref("營運管理週報");
 
-// --- 🚀 計算屬性：自動從 columns 中取出中文字段作為 Excel 表頭 ---
+// --- 🚀 計算屬性：自動從 columns 中取出標題作為 Excel 表頭 ---
 const excelHeaders = computed(() => {
   return columns.value.map(col => col.title);
 });
 
-// --- 系統別與城市選項 (保持不變) ---
+// --- 🚀 選項定義 (移除 1.0) ---
 const sysOptions = [
-  { label: "1.0", value: "1" },
   { label: "2.0", value: "2" },
   { label: "2.0E", value: "2E" },
 ];
 
+// --- 🚀 城市選單 (資料庫動態撈取) ---
+const dbCities = ref([]);
+
+const loadCities = async () => {
+  try {
+    const res = await getAllCities();
+    const data = res.data.data || [];
+    dbCities.value = data.filter(c => c.status === 'active' && canusecitys.includes(c.city_id));
+  } catch (error) {
+    console.error("載入縣市失敗:", error);
+  }
+};
+
 const cityOptions = computed(() => {
   if (!category.value) return [];
-  const suffix = category.value === "1" ? "" : category.value === "2" ? "2" : "2E";
-  const map = [
-    { label: "台北市", baseValue: "Taipei", auth: 2 },
-    { label: "新北市", baseValue: "Newtaipei", auth: 3 },
-    { label: "桃園市", baseValue: "Taoyuan", auth: 4 },
-    { label: "新竹市", baseValue: "Hsinchu", auth: 5 },
-    { label: "新竹縣", baseValue: "Hsinchu_Country", auth: 6 },
-    { label: "竹科", baseValue: "HsinchuScience", auth: 20 },
-    { label: "苗栗縣", baseValue: "Miaoli", auth: 7 },
-    { label: "台中市", baseValue: "Taichung", auth: 8 },
-    { label: "嘉義市", baseValue: "Chiayi", auth: 12 },
-    { label: "嘉義縣", baseValue: "Chiayi_Country", auth: 13 },
-    { label: "台南市", baseValue: "Tainan", auth: 14 },
-    { label: "高雄市", baseValue: "Kaohsiung", auth: 15 },
-    { label: "屏東縣", baseValue: "Pingtung", auth: 16 },
-    { label: "台東縣", baseValue: "Taitung", auth: 19 },
-  ];
+  const suffix = category.value === "2" ? "2" : "2E";
 
-  if (category.value === "1") {
-    return map.filter(c => ["Newtaipei", "Taoyuan", "Miaoli"].includes(c.baseValue) && canusecitys.includes(c.auth))
-               .map(c => ({ label: c.label, value: c.baseValue }));
-  }
-  return map.filter(c => canusecitys.includes(c.auth))
-            .map(c => ({ label: c.label, value: `${c.baseValue}${suffix}` }));
+  return dbCities.value.map(c => {
+    // 正則表達式洗乾淨：還原 BaseCode 再加上字尾
+    let rawCode = c.codes ? c.codes.split(',')[0].trim() : '';
+    let cleanBaseCode = rawCode.replace(/2E$/i, '').replace(/2$/i, '');
+    
+    return {
+      label: c.city_name,
+      value: cleanBaseCode + suffix
+    };
+  }).filter(c => c.value !== '2' && c.value !== '2E');
 });
 
-// --- 日期限制 (保持不變) ---
+onMounted(() => {
+  loadCities();
+});
+
+// --- 日期限制 ---
 const disablestartDate = (ts) => {
   const d = new Date(ts);
   const now = new Date();
@@ -162,7 +171,7 @@ const disablestartDate = (ts) => {
   return false;
 };
 
-// --- 🚀 資料矩陣處理 (優化轉置邏輯) ---
+// --- 資料矩陣處理 ---
 const processMatrixData = (rawData) => {
   if (!rawData || rawData.length === 0) {
     columns.value = [];
@@ -170,11 +179,9 @@ const processMatrixData = (rawData) => {
     return;
   }
 
-  // 1. 欄位重排 (維持原有邏輯)
   const reorderedData = rawData.filter((_, index) => index !== 4);
   if (rawData[4]) reorderedData.push(rawData[4]);
 
-  // 2. 建立 Columns 結構
   columns.value = reorderedData.map((colData, index) => {
     const colDef = {
       key: `item${index + 1}`,
@@ -188,7 +195,6 @@ const processMatrixData = (rawData) => {
     return colDef;
   });
 
-  // 3. 矩陣轉置 (從 index 3 開始抓真實資料)
   const rowCount = reorderedData[0].length;
   const rows = [];
   for (let rowIndex = 3; rowIndex < rowCount; rowIndex++) {
@@ -209,22 +215,21 @@ const getdata = async () => {
       dataset_id: "report",
       table_id: `weekly_report_query${category.value}`,
       date: timestamp.value,
-      city: [city.value],
+      // 🚀 兇手就是這裡！週報的後端嚴格要求必須傳陣列，所以要把中括號加回來！
+      city: [city.value], 
     };
 
     const res = await getGcpReport(params);
     const rawMatrixData = res.data?.data?.[0] || [];
-
+    
     if (rawMatrixData.length === 0) {
       totaldata.value = [];
+      NotCityAlert("該區間查無資料");
       return;
     }
 
     processMatrixData(rawMatrixData);
-    
-    // 💡 修正點：移除這裡的 makeExecl 呼叫
-    // 讓搜尋功能只負責更新畫面表格
-    excelName.value = `${category.value === '1' ? '1.0' : category.value === '2' ? '2.0' : '2.0E'}_營運管理週報`;
+    excelName.value = `${category.value === '2' ? '2.0' : '2.0E'}_營運管理週報`;
 
   } catch (error) {
     console.error("API Error:", error);
@@ -241,8 +246,8 @@ const search = async () => {
   await getdata();
 };
 
-// --- 黃色高亮 (保持不變) ---
-const rowClassName = (row) => {
+// --- 🚀 斑馬紋與高亮樣式判斷 ---
+const rowClassName = (row, index) => {
   const highlightItems = [
     "場站資訊", "租借資訊", "收入資訊", "妥善率資訊", "票卡資訊",
     "當週租借車次", "各時段使用資訊", "租賃收入明細", "租賃時間使用資訊",
@@ -255,12 +260,27 @@ const rowClassName = (row) => {
   ) {
     return "too-old";
   }
-  return "";
+  return index % 2 === 1 ? 'gray-row' : '';
 };
 </script>
 
 <style scoped>
+/* 🚀 大標題高亮樣式 */
 :deep(.too-old td) {
   background-color: rgba(225, 232, 23, 0.75) !important;
+  font-weight: bold;
+}
+
+/* 🚀 灰色行的背景顏色 (#e8e8e8) */
+:deep(.gray-row td) {
+  background-color: #e8e8e8 !important;
+}
+
+/* 滑鼠經過高亮 */
+:deep(.n-data-table .n-data-table-tr.gray-row:hover td) {
+  background-color: #d1d1d1 !important;
+}
+:deep(.n-data-table .n-data-table-tr.too-old:hover td) {
+  background-color: rgba(225, 232, 23, 0.9) !important;
 }
 </style>

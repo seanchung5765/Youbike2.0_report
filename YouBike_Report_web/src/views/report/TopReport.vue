@@ -5,13 +5,11 @@
       <h1 class="report-h1 fw-bold">TOP50 排名週報</h1>
     </div>
 
-    <!-- 🚀 鐵壁防禦排版：強制單行、橫向捲軸 -->
     <form
       class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
       style="display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; overflow-x: auto;"
     >
-      <!-- 城市選擇 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
         <div style="width: 180px;">
@@ -27,7 +25,6 @@
         <button type="button" class="btn btn-sm btn-success text-light" style="white-space: nowrap;" @click="setAllCity">全選</button>
       </div>
 
-      <!-- 借/還選擇 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">借/還:</label>
         <div style="width: 130px;">
@@ -41,7 +38,6 @@
         </div>
       </div>
 
-      <!-- 日期選擇 -->
       <div style="width: 160px; flex-shrink: 0;">
         <n-date-picker
           v-model:formatted-value="timestamp"
@@ -53,7 +49,6 @@
         />
       </div>
 
-      <!-- 按鈕群組 -->
       <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
         <button type="button" class="btn btn-success text-light" style="white-space: nowrap;" @click="search">搜尋</button>
         <output-excel
@@ -66,31 +61,34 @@
       </div>
     </form>
 
-    <n-data-table
-      v-show="data.length > 0"
-      size="small"
-      :data="data"
-      ref="dataTableRef"
-      :columns="columns"
-      :pagination="{ pageSize: 15 }"
-      :max-height="600"
-      :scroll-x="1000"
-      :bordered="false"
-      :single-line="false"
-      striped
-    />
+    <div style="height: calc(100vh - 180px); padding-bottom: 10px; margin-top: 10px;">
+      <n-data-table
+        v-show="data.length > 0"
+        size="small"
+        ref="dataTableRef"
+        :data="data"
+        :columns="columns"
+        :scroll-x="1200"
+        :bordered="false"
+        :single-line="false"
+        striped
+        flex-height
+        style="height: 100%;"
+        :row-class-name="rowClassName"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, inject, computed } from "vue";
+import { ref, inject, computed, onMounted } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { NDataTable, NSelect, NDatePicker } from "naive-ui";
 import { useUserStore } from "../../stores/userdata";
 import OutputExcel from "../../components/OutputExcel.vue";
-// 🚀 引入共用 API
 import { getGcpReport } from "@/api/report";
+import { getAllCities } from "@/api/admin";
 
 const store = useUserStore();
 const canusecitys = store.citys || [];
@@ -104,35 +102,41 @@ const data = ref([]);
 const cityvalue = ref([]);
 const sendvalue = ref([]);
 
-// 🚀 響應式 Excel 變數
 const exceldata = ref([]);
 const excelename = ref("");
 const excelecolumn = ref([]);
 
 async function errorAlert(text) {
-  swal({ icon: "error", title: text, showConfirmButton: false });
+  swal({ icon: "error", title: text, showConfirmButton: false, timer: 1500 });
 }
 
-// --- 🚀 城市選單動態生成 (取代 100 行手寫代碼) ---
-const cityOptions = computed(() => {
-  const baseCities = [
-    { label: "台北市", value: "Taipei", auth: 2 }, { label: "新北市", value: "Newtaipei", auth: 3 },
-    { label: "桃園市", value: "Taoyuan", auth: 4 }, { label: "新竹市", value: "Hsinchu", auth: 5 },
-    { label: "新竹縣", value: "Hsinchu_Country", auth: 6 }, { label: "竹科", value: "HsinchuScience", auth: 20 },
-    { label: "苗栗縣", value: "Miaoli", auth: 7 }, { label: "台中市", value: "Taichung", auth: 8 },
-    { label: "嘉義市", value: "Chiayi", auth: 12 }, { label: "嘉義縣", value: "Chiayi_Country", auth: 13 },
-    { label: "台南市", value: "Tainan", auth: 14 }, { label: "高雄市", value: "Kaohsiung", auth: 15 },
-    { label: "屏東縣", value: "Pingtung", auth: 16 }, { label: "台東縣", value: "Taitung", auth: 19 }
-  ];
+// --- 🚀 城市選單 (API 動態載入) ---
+const cityOptions = ref([]);
 
-  const options = [];
-  baseCities.forEach(c => {
-    if (canusecitys.includes(c.auth)) {
-      options.push({ label: `${c.label} 2.0`, value: `${c.value}2` });
-      options.push({ label: `${c.label} 2.0E`, value: `${c.value}2E` });
-    }
-  });
-  return options;
+const loadCities = async () => {
+  try {
+    const res = await getAllCities();
+    const dbCities = res.data.data || [];
+    const options = [];
+    
+    dbCities.forEach(c => {
+      if (c.status === 'active' && canusecitys.includes(c.city_id)) {
+        // 洗乾淨原始代碼，產生 2.0 與 2.0E 組合
+        let rawCode = c.codes ? c.codes.split(',')[0].trim() : '';
+        let cleanBaseCode = rawCode.replace(/2E$/i, '').replace(/2$/i, '');
+        
+        options.push({ label: `${c.city_name} 2.0`, value: `${cleanBaseCode}2` });
+        options.push({ label: `${c.city_name} 2.0E`, value: `${cleanBaseCode}2E` });
+      }
+    });
+    cityOptions.value = options;
+  } catch (error) {
+    console.error("載入縣市失敗:", error);
+  }
+};
+
+onMounted(() => {
+  loadCities();
 });
 
 const sendOptions = [
@@ -141,36 +145,37 @@ const sendOptions = [
 ];
 
 const columns = [
-  { key: "item1", align: "center", title: "借/還", width: 80 },
+  { key: "item1", align: "center", title: "借/還", width: 80, fixed: "left" },
   { key: "item2", align: "center", title: "城市", width: 100 },
   { key: "item3", align: "center", title: "場站名稱", width: 250 },
   { key: "item4", align: "center", title: "開站時間", width: 120 },
-  { key: "item5", align: "center", title: "本週次數" },
-  { key: "item6", align: "center", title: "本週排名" },
-  { key: "item7", align: "center", title: "上週次數" },
-  { key: "item8", align: "center", title: "上週排名" },
-  { key: "item9", align: "center", title: "成長率" },
+  { key: "item5", align: "center", title: "本週次數", width: 100 },
+  { key: "item6", align: "center", title: "本週排名", width: 100 },
+  { key: "item7", align: "center", title: "上週次數", width: 100 },
+  { key: "item8", align: "center", title: "上週排名", width: 100 },
+  { key: "item9", align: "center", title: "成長率", width: 100 },
 ];
 
-// --- 🚀 日期防呆 (僅限週一且不能超過本週) ---
 const disableMondayDate = (ts) => {
   const d = new Date(ts);
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  
-  // 計算本週一
   const currentWeekMonday = new Date(todayStart);
   currentWeekMonday.setDate(todayStart.getDate() - (todayStart.getDay() || 7) + 1);
 
-  if (d >= currentWeekMonday) return true; // 只能選過去的週
-  if (d.getDay() !== 1) return true; // 只能選週一
-  if (d.getFullYear() < 2023) return true; // 2023以前禁用
-
+  if (d >= currentWeekMonday) return true;
+  if (d.getDay() !== 1) return true;
+  if (d.getFullYear() < 2023) return true;
   return false;
 };
 
 const setAllCity = () => {
   cityvalue.value = cityOptions.value.map(o => o.value);
+};
+
+// 🚀 斑馬紋樣式 (#e8e8e8)
+const rowClassName = (row, index) => {
+  return index % 2 === 1 ? 'gray-row' : '';
 };
 
 // --- API 請求 ---
@@ -188,7 +193,6 @@ const getRankingData = async () => {
     const res = await getGcpReport(params);
     const resList = res.data?.data || [];
 
-    // 🚀 資料 Mapping & 防護
     data.value = resList.map(item => ({
       item1: item.item_ch ?? "",
       item2: item.city_ch ?? "",
@@ -201,12 +205,9 @@ const getRankingData = async () => {
       item9: item.growth_rate ?? "0%",
     }));
 
-    // 更新 Excel
     exceldata.value = [...data.value];
-    excelename.value = "Top50 排名週報";
+    excelename.value = `Top50_排名週報_${timestamp.value}`;
     excelecolumn.value = columns.map(c => c.title);
-
-    if (dataTableRef.value?.page) dataTableRef.value.page(1);
 
   } catch (error) {
     console.error("API Error:", error);
@@ -223,3 +224,15 @@ const search = () => {
   getRankingData();
 };
 </script>
+
+<style scoped>
+/* 🚀 灰色行的背景顏色 (#e8e8e8) */
+:deep(.gray-row td) {
+  background-color: #e8e8e8 !important;
+}
+
+/* 滑鼠經過高亮 */
+:deep(.n-data-table .n-data-table-tr.gray-row:hover td) {
+  background-color: #d1d1d1 !important;
+}
+</style>

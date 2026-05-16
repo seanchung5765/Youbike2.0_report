@@ -2,12 +2,15 @@ import axios from "axios";
 import router from "@/router"; 
 import Swal from "sweetalert2";
 
+// 🚀 關鍵修改：優先讀取雲端動態設定的網址，如果沒有（例如本機開發環境）才吃 Vite 的變數
+const baseURL = window.APP_CONFIG?.API_URL || import.meta.env.VITE_NODE_URL;
+
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_NODE_URL,
+  baseURL: baseURL, // 替換成剛剛宣告的變數
   timeout: 100000,
 });
 
-//  1. 請求攔截器 (Request Interceptor)：每次發 API 前自動把 Cookie 的 Token 找出來帶上
+// 1. 請求攔截器 (Request Interceptor)：每次發 API 前自動把 Cookie 的 Token 找出來帶上
 apiClient.interceptors.request.use(
   (config) => {
     // 尋找名為 youbike 的 cookie
@@ -64,3 +67,12 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
+
+// 報表點擊率計數 API
+export const recordClick = (pageId) => {
+  // 使用設定好 baseURL 的 apiClient 默默在背景發送請求
+  // 萬一網路不穩或後端沒開，.catch() 會直接吃掉錯誤，完全不影響前端畫面
+  return apiClient.post('/report/record-click', { page_id: pageId }).catch(err => {
+    console.warn("點擊計數背景發送失敗 (可忽略):", err);
+  });
+};

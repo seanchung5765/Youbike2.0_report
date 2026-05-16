@@ -5,17 +5,14 @@
       <h1 class="report-h1 fw-bold">騎乘次數明細比例</h1>
     </div>
 
-    <!-- 🚀 鐵壁防禦排版：強制單行、不換行、橫向捲軸 -->
     <form
       class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
       style="display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; overflow-x: auto;"
     >
-      <!-- 城市與全選 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
         <div style="width: 180px;">
-          <!-- 🚀 統一為 n-select -->
           <n-select
             v-model:value="city"
             placeholder="請選擇"
@@ -30,7 +27,6 @@
         </button>
       </div>
 
-      <!-- 月份與全選 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; margin-left: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">月份:</label>
         <div style="width: 180px;">
@@ -48,9 +44,8 @@
         </button>
       </div>
 
-      <!-- 搜尋匯出按鈕 -->
       <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
-        <button type="button" class="btn btn-primary text-light" style="white-space: nowrap;" @click="search">
+        <button type="button" class="btn btn-success text-light" style="white-space: nowrap;" @click="search">
           搜尋
         </button>
         <output-excel
@@ -75,20 +70,21 @@
       size="small"
       :single-line="false"
       striped
+      :row-class-name="rowClassName"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, inject, computed } from "vue";
+import { ref, inject, computed, onMounted } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { NDataTable, NSelect } from "naive-ui";
 import OutputExcel from "../../components/OutputExcel.vue";
 import { useUserStore } from "../../stores/userdata";
-import * as XLSX from "xlsx";
 // 🚀 引入共用 API
 import { getGcpReport } from "@/api/report";
+import { getAllCities } from "@/api/admin";
 
 const store = useUserStore();
 const canusecitys = store.citys || [];
@@ -105,44 +101,45 @@ const data = ref([]);
 const city = ref([]);
 const date = ref([]);
 
-let exceldata = [];
-let excelename = "";
-let excelecolumn = [];
+// 🚀 修正：必須使用 ref 才能讓 OutputExcel 按鈕隨時抓到最新的資料
+const exceldata = ref([]);
+const excelename = ref("");
+const excelecolumn = ref([]);
 
-// --- 🚀 城市選單 (資料驅動 Computed) ---
-const cityOptions = computed(() => {
-  const map = [
-    { label: "台北市", value: "台北市", auth: [2] },
-    { label: "新北市", value: "新北市", auth: [3] },
-    { label: "桃園市", value: "桃園市", auth: [4] },
-    { label: "新竹市+竹科", value: "新竹市+竹科", auth: [5, 20] }, // 特殊：需要同時有 5 和 20
-    { label: "新竹市", value: "新竹市", auth: [5] },
-    { label: "新竹縣", value: "新竹縣", auth: [6] },
-    { label: "竹科", value: "竹科", auth: [20] },
-    { label: "苗栗縣", value: "苗栗縣", auth: [7] },
-    { label: "台中市", value: "台中市", auth: [8] },
-    { label: "嘉義市", value: "嘉義市", auth: [12] },
-    { label: "嘉義縣", value: "嘉義縣", auth: [13] },
-    { label: "台南市", value: "台南市", auth: [14] },
-    { label: "高雄市", value: "高雄市", auth: [15] },
-    { label: "屏東縣", value: "屏東縣", auth: [16] },
-    { label: "台東縣", value: "台東縣", auth: [19] },
-  ];
+// --- 🚀 城市選單 (資料庫動態 API 載入，竹科與新竹市自動分離) ---
+const cityOptions = ref([]);
 
-  // 確保必須的權限 (auth 陣列內的 ID) 使用者都有
-  return map.filter(c => c.auth.every(a => canusecitys.includes(a)));
+const loadCities = async () => {
+  try {
+    const res = await getAllCities();
+    const dbCities = res.data.data || [];
+    
+    // 過濾出 active 且有權限的城市 (因為是從資料庫撈，新竹市跟竹科本來就是分開的兩筆資料)
+    cityOptions.value = dbCities
+      .filter(c => c.status === 'active' && canusecitys.includes(c.city_id))
+      .map(c => ({
+        label: c.city_name,
+        value: c.city_name 
+      }));
+  } catch (error) {
+    console.error("載入縣市失敗:", error);
+  }
+};
+
+onMounted(() => {
+  loadCities();
 });
 
 const setAllCity = () => {
   city.value = cityOptions.value.map(c => c.value);
 };
 
-// --- 🚀 月份選單動態生成 (極簡寫法) ---
+// --- 月份選單動態生成 ---
 const dateOptions = computed(() => {
   const arr = [];
   const start = new Date(2018, 0, 1); // 2018-01
   const now = new Date();
-  const end = new Date(now.getFullYear(), now.getMonth(), 1); // 算到上個月為止
+  const end = new Date(now.getFullYear(), now.getMonth(), 1); 
 
   let current = new Date(start);
   while (current < end) {
@@ -152,7 +149,7 @@ const dateOptions = computed(() => {
     current.setMonth(current.getMonth() + 1);
   }
   
-  return arr.reverse(); // 🚀 反轉陣列，讓最新的月份排在最上面，UX 更好
+  return arr.reverse(); 
 });
 
 const setAllDate = () => {
@@ -169,21 +166,19 @@ const column = [
   { key: "item6", align: "center", title: "已加保比例" },
 ];
 
-const makeExecl = (nowdata, name) => {
-  if (!nowdata || !nowdata.length) return NotAlert("空資料不能匯出");
-  exceldata = [...nowdata];
-  excelename = name;
-  excelecolumn = column.map(c => c.title);
-
-  const validKeys = column.map(c => c.key);
-  const workbook = XLSX.utils.book_new();
-  const worksheet = XLSX.utils.json_to_sheet(exceldata, { header: validKeys, skipHeader: true });
-  XLSX.utils.book_append_sheet(workbook, worksheet, "sheet1");
-  XLSX.utils.sheet_add_aoa(worksheet, [excelecolumn], { origin: "A1" });
-  XLSX.writeFile(workbook, `${excelename}.xlsx`);
+// --- 🚀 修正：移除強制下載邏輯，只負責綁定資料給按鈕 ---
+const prepareExcel = (nowdata, name) => {
+  exceldata.value = [...nowdata];
+  excelename.value = name;
+  excelecolumn.value = column.map(c => c.title);
 };
 
-// 將 ["2023-05", "2023-06"] 轉為 ["202305", "202306"]
+// 斑馬紋樣式 (#e8e8e8)
+const rowClassName = (row, index) => {
+  return index % 2 === 1 ? 'gray-row' : '';
+};
+
+// 將 ["2023-05", "2023-06"] 轉為 ["202305", "202306"] 給 GCP
 const removeHyphensFromArray = (datesArray) => datesArray.map(date => date.replace(/-/g, ""));
 
 // --- API 請求 ---
@@ -197,11 +192,9 @@ const getData = async () => {
       city: city.value,
     };
 
-    // 🚀 使用共用 API
     const res = await getGcpReport(params);
     const saultdata = res.data?.data || [];
 
-    // 🚀 陣列映射防護
     data.value = saultdata.map(i => ({
       item1: i.usetime ?? "",
       item2: i.N ?? 0,
@@ -211,7 +204,8 @@ const getData = async () => {
       item6: i.Y_prop ?? "0%",
     }));
 
-    makeExecl(data.value, "騎乘次數明細比例");
+    // 🚀 準備好匯出資料，交給 OutputExcel 組件，不直接觸發下載
+    prepareExcel(data.value, "騎乘次數明細比例");
 
     if (dataTable.value?.page) dataTable.value.page(1);
 
@@ -225,9 +219,19 @@ const getData = async () => {
 
 const search = () => {
   if (!city.value.length) return NotAlert("請選擇城市");
-  if (!date.value.length) return NotAlert("請選擇月份"); // 🚀 修復了原本錯誤提示寫「請選擇每週一日期」的 Bug
+  if (!date.value.length) return NotAlert("請選擇月份"); 
   getData();
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+/* 🚀 灰色行的背景顏色 (#e8e8e8) */
+:deep(.gray-row td) {
+  background-color: #e8e8e8 !important;
+}
+
+/* 滑鼠經過高亮 */
+:deep(.n-data-table .n-data-table-tr.gray-row:hover td) {
+  background-color: #d1d1d1 !important;
+}
+</style>

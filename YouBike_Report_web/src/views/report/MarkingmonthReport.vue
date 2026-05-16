@@ -9,40 +9,27 @@
       <h1 class="report-h1 fw-bold">行銷月報 (每月10號更新資料)</h1>
     </div>
 
-    <!-- 🚀 鐵壁防禦排版：強制單行、不換行、橫向捲軸 -->
     <form
       class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
       style="display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; overflow-x: auto;"
     >
-      <!-- 系統別選擇 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
-        <label class="fw-bolder mb-0" style="white-space: nowrap;">系統別:</label>
+        <label class="fw-bolder mb-0" style="white-space: nowrap;">選擇月份:</label>
         <div style="width: 140px;">
-          <!-- 🚀 升級為 n-select -->
-          <n-select
-            v-model:value="category"
-            :options="sysOptions"
+          <n-date-picker
+            v-model:formatted-value="timestamp"
+            type="month"
+            :actions="null"
+            :input-readonly="true"
+            :update-value-on-close="true"
             placeholder="請選擇"
+            value-format="yyyy-MM"
+            :is-date-disabled="disablePreviousDate"
           />
         </div>
       </div>
 
-      <!-- 月份選擇 -->
-      <div style="width: 140px; flex-shrink: 0;">
-        <n-date-picker
-          v-model:formatted-value="timestamp"
-          type="month"
-          :actions="null"
-          :input-readonly="true"
-          :update-value-on-close="true"
-          placeholder="選擇月份"
-          value-format="yyyy-MM"
-          :is-date-disabled="disablePreviousDate"
-        />
-      </div>
-
-      <!-- 按鈕群組 -->
       <div style="display: flex; gap: 8px; flex-shrink: 0;">
         <button
           type="button"
@@ -62,19 +49,21 @@
       </div>
     </form>
 
-    <n-data-table
-      v-show="data.length > 0"
-      size="small"
-      :data="data"
-      ref="dataTable"
-      :columns="columns"
-      :pagination="{ pageSize: 15 }"
-      :max-height="600"
-      :scroll-x="1000"
-      :bordered="false"
-      :single-line="false"
-      striped
-    />
+    <div style="height: calc(100vh - 180px); padding-bottom: 10px; margin-top: 10px;">
+      <n-data-table
+        v-show="data.length > 0"
+        size="small"
+        :data="data"
+        :columns="columns"
+        :scroll-x="1000"
+        :bordered="false"
+        :single-line="false"
+        striped
+        flex-height
+        style="height: 100%;"
+        :row-class-name="rowClassName"
+      />
+    </div>
   </div>
 </template>
 
@@ -82,10 +71,9 @@
 import { ref, inject } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
-// 🚀 記得引入 NSelect
-import { NDataTable, NDatePicker, NSelect } from "naive-ui";
+// 🚀 已移除 NSelect，只留下用得到的組件
+import { NDataTable, NDatePicker } from "naive-ui";
 import OutputExcel from "../../components/OutputExcel.vue";
-// 🚀 引入共用 API
 import { getGcpReport } from "@/api/report";
 
 const ischange = inject("ischange");
@@ -97,22 +85,19 @@ async function NotCityAlert(text) {
 
 const timestamp = ref(null);
 const isLoading = ref(false);
-const category = ref(null);
 const data = ref([]);
 const columns = ref([]);
-const dataTable = ref(null);
 
 let exceldata = [];
 let excelename = "";
 let excelecolumn = [];
 
-// --- 🚀 系統別選項 ---
-const sysOptions = [
-  { label: "1.0", value: "1" },
-  { label: "2.0+2.0E", value: "2_E" }
-];
+// --- 🚀 斑馬紋樣式判斷 (#e8e8e8) ---
+const rowClassName = (row, index) => {
+  return index % 2 === 1 ? 'gray-row' : '';
+};
 
-// --- 🚀 日期防呆優化 (極簡化時間戳判斷) ---
+// --- 日期防呆優化 ---
 const disablePreviousDate = (ts) => {
   const d = new Date(ts);
   const now = new Date();
@@ -123,7 +108,7 @@ const disablePreviousDate = (ts) => {
   return d < minDate || d >= currentMonthStart;
 };
 
-// --- 🚀 資料矩陣重構 (將 makecol 與 makedata 合併為一個清爽的函式) ---
+// --- 資料矩陣重構 ---
 const processMatrixData = (rawData) => {
   if (!rawData || rawData.length === 0) {
     data.value = [];
@@ -136,19 +121,19 @@ const processMatrixData = (rawData) => {
     const colDef = {
       key: `item${index + 1}`,
       align: "center",
-      title: colData[2] ?? `未知欄位${index + 1}` // 陣列的第 3 個元素是標題
+      title: colData[2] ?? `未知欄位${index + 1}`
     };
     
     // 針對第一欄位凍結與設定寬度
     if (index === 0) {
       colDef.fixed = "left";
-      if (category.value !== "1") colDef.width = 100;
+      colDef.width = 100;
     }
     return colDef;
   });
   columns.value = cols;
 
-  // 2. 建立資料列 Rows (從 index 3 開始才是真實資料)
+  // 2. 建立資料列 Rows
   const rowCount = rawData[0].length;
   const rows = [];
   
@@ -175,20 +160,16 @@ const getData = async () => {
     isLoading.value = true;
     const params = {
       dataset_id: "marketing_report",
-      table_id: `monthly_report${category.value}`,
+      table_id: "monthly_report2_E", // 🚀 直接固定帶入原本 2.0+2.0E 的代碼
       date: `${timestamp.value}-01`,
     };
 
-    // 🚀 呼叫抽出的 API，解決 401 問題
     const res = await getGcpReport(params);
     const resdata = res.data?.data || [];
 
-    // 呼叫重構後的矩陣處理函式
     processMatrixData(resdata);
-
-    if (dataTable.value?.page) dataTable.value.page(1);
-    
     makeExecl(data.value, columns.value, "行銷月報");
+    
   } catch (error) {
     console.error("API Error:", error);
     NotCityAlert("查詢失敗，請稍後再試");
@@ -198,10 +179,19 @@ const getData = async () => {
 };
 
 const search = () => {
-  if (!category.value) return NotCityAlert("請選擇系統別");
   if (!timestamp.value) return NotCityAlert("請選擇日期");
   getData();
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+/* 🚀 灰色行的背景顏色 (#e8e8e8) */
+:deep(.gray-row td) {
+  background-color: #e8e8e8 !important;
+}
+
+/* 滑鼠經過高亮 (避免被灰色強制蓋掉) */
+:deep(.n-data-table .n-data-table-tr.gray-row:hover td) {
+  background-color: #d1d1d1 !important;
+}
+</style>

@@ -9,17 +9,14 @@
       <h1 class="report-h1 fw-bold">遺失車報表</h1>
     </div>
 
-    <!-- 🚀 鐵壁防禦排版：強制單行、不換行、橫向捲軸 -->
     <form
       class="mx-0 py-2 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
       style="display: flex; flex-wrap: nowrap; align-items: center; gap: 16px; overflow-x: auto;"
     >
-      <!-- 城市選擇 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
-        <div style="width: 140px;">
-          <!-- 🚀 升級為 n-select -->
+        <div style="width: 160px;">
           <n-select
             v-model:value="city"
             :options="cityOptions"
@@ -28,7 +25,6 @@
         </div>
       </div>
 
-      <!-- 日期選擇 -->
       <div style="width: 150px; flex-shrink: 0;">
         <n-date-picker
           v-model:formatted-value="timestamp"
@@ -42,7 +38,6 @@
         />
       </div>
 
-      <!-- 按鈕群組 -->
       <div style="display: flex; gap: 8px; flex-shrink: 0;">
         <button
           type="button"
@@ -62,30 +57,35 @@
       </div>
     </form>
 
-    <n-data-table
-      ref="dataTable"
-      size="small"
-      v-show="totaldata.length > 0"
-      :columns="columns"
-      :data="totaldata"
-      :max-height="600"
-      :scroll-x="1000"
-      :bordered="false"
-      :single-line="false"
-      striped
-    />
+    <div style="height: calc(100vh - 180px); padding-bottom: 10px;">
+      <n-data-table
+        ref="dataTable"
+        size="small"
+        v-show="totaldata.length > 0"
+        :columns="columns"
+        :data="totaldata"
+        :max-height="600"
+        :scroll-x="1000"
+        :bordered="false"
+        :single-line="false"
+        striped
+        flex-height
+        style="height: 100%;"
+        :row-class-name="rowClassName" 
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, inject, computed } from "vue";
+import { ref, inject, onMounted } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { NDataTable, NDatePicker, NSelect } from "naive-ui";
 import { useUserStore } from "../../stores/userdata";
 import OutputExcel from "../../components/OutputExcel.vue";
-// 🚀 引入共用 API
 import { getGcpReport } from "@/api/report";
+import { getAllCities } from "@/api/admin";
 
 const store = useUserStore();
 const canusecitys = store.citys || [];
@@ -101,66 +101,75 @@ const city = ref(null);
 const timestamp = ref(null);
 const isLoading = ref(false);
 const totaldata = ref([]);
+const cityOptions = ref([]);
 
 let exceldata = [];
 let excelename = "";
 let excelecolumn = [];
 
-// --- 🚀 城市選單 (資料驅動 + 雙北特殊權限處理) ---
-const cityOptions = computed(() => {
-  const map = [
-    { label: "雙北", value: "Taipei+NewTaipei", auth: [2, 3] }, // 需同時具備 2 和 3
-    { label: "台北市", value: "Taipei", auth: 2 },
-    { label: "新北市", value: "NewTaipei", auth: 3 },
-    { label: "桃園市", value: "Taoyuan", auth: 4 },
-    { label: "新竹市", value: "Hsinchu", auth: 5 },
-    { label: "新竹縣", value: "Hsinchu_country", auth: 6 },
-    { label: "竹科", value: "Hsinchu_science", auth: 20 },
-    { label: "苗栗縣", value: "Mialoi", auth: 7 }, // 維持原 API 拼字
-    { label: "台中市", value: "Taichung", auth: 8 },
-    { label: "嘉義市", value: "Chiayi", auth: 12 },
-    { label: "嘉義縣", value: "Chiayi_country", auth: 13 },
-    { label: "台南市", value: "Tainan", auth: 14 },
-    { label: "高雄市", value: "Kaohsiung", auth: 15 },
-    { label: "屏東縣", value: "Pingtung", auth: 16 }
-  ];
+// --- 🚀 1. 縣市 API 載入與智慧組合邏輯 ---
+const loadCities = async () => {
+  try {
+    const res = await getAllCities();
+    const dbCities = res.data.data || [];
 
-  return map.filter(c => {
-    // 若權限需求是陣列 (如雙北)，則需 every 皆符合
-    if (Array.isArray(c.auth)) {
-      return c.auth.every(a => canusecitys.includes(a));
+    // 先過濾出使用者有權限的縣市
+    const authorized = dbCities.filter(c => canusecitys.includes(c.city_id));
+
+    // 判斷是否要出現「雙北」選項 (必須同時擁有 台北 2 和 新北 3)
+    const hasTaipei = canusecitys.includes(2);
+    const hasNewTaipei = canusecitys.includes(3);
+
+    const options = [];
+    
+    // 如果有雙北權限，加入組合包
+    if (hasTaipei && hasNewTaipei) {
+      options.push({ label: "雙北", value: "Taipei+NewTaipei" });
     }
-    return canusecitys.includes(c.auth);
-  });
-});
 
-// --- 🚀 城市中英對照字典 (取代冗長 switch) ---
-const cityDict = {
-  Taipei: "台北市", NewTaipei: "新北市", Taoyuan: "桃園市",
-  Hsinchu: "新竹市", Hsinchu_country: "新竹縣", Hsinchu_science: "竹科",
-  Mialoi: "苗栗縣", Taichung: "台中市", Chiayi: "嘉義市",
-  Chiayi_country: "嘉義縣", Tainan: "台南市", Kaohsiung: "高雄市", Pingtung: "屏東縣"
+    // 加入個別縣市
+    authorized.forEach(c => {
+      // 取得 GCP Python 那邊認得的英文字串 (codes 欄位的第一個)
+      const gcpCode = c.codes ? c.codes.split(',')[0].trim() : "";
+      if (gcpCode) {
+        options.push({
+          label: c.city_name,
+          value: gcpCode,
+          original_name: c.city_name // 存一下中文名，供後續對照
+        });
+      }
+    });
+
+    cityOptions.value = options;
+  } catch (error) {
+    console.error("載入縣市失敗:", error);
+  }
 };
 
-const chineseCity = (cityKey) => cityDict[cityKey] || "未知城市";
+onMounted(() => {
+  loadCities();
+});
+
+// --- 🚀 2. 斑馬紋樣式設定 (#e8e8e8) ---
+const rowClassName = (row, index) => {
+  return index % 2 === 1 ? 'gray-row' : '';
+};
 
 // --- 日期防呆優化 ---
 const disableStartDate = (ts) => {
   const date = new Date(ts);
-  const minDate = new Date(2023, 7, 30); // 2023-08-30
+  const minDate = new Date(2023, 7, 30); 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-
-  // 只能選 2023-08-30 以後，且「今天以前」(也就是最多選到昨天)
   return date < minDate || date >= today;
 };
 
 // --- 表頭定義 ---
 const columns = [
-  { key: "item1", align: "center", title: "城市" },
-  { key: "item2", align: "center", title: "系統" },
-  { key: "item3", align: "center", title: "待協尋車輛數" },
-  { key: "item4", align: "center", title: "狀態" },
+  { key: "item1", align: "center", title: "城市", width: 120 },
+  { key: "item2", align: "center", title: "系統", width: 100 },
+  { key: "item3", align: "center", title: "待協尋車輛數", width: 150 },
+  { key: "item4", align: "center", title: "狀態", width: 150 },
   { key: "item5", align: "center", title: "車號" },
 ];
 
@@ -174,22 +183,28 @@ const makeExecl = (nowdata, name) => {
 const getdata = async () => {
   try {
     isLoading.value = true;
+    
+    // 處理雙北特殊參數
+    const cityParams = city.value === "Taipei+NewTaipei" ? ["Taipei", "NewTaipei"] : [city.value];
+
     const params = {
       dataset_id: "report",
       table_id: "daily_lost",
       date: timestamp.value,
-      city: city.value === "Taipei+NewTaipei" ? ["Taipei", "NewTaipei"] : [city.value],
+      city: cityParams,
     };
 
-    // 🚀 使用共用 API 發送
     const res = await getGcpReport(params);
     const resdata = res.data?.data || [];
 
-    // 💡 整理資料，並保留原有的「視覺合併 (清空重複字串)」邏輯
+    // 💡 整理資料並執行合併儲存格視覺優化
     let arr = [];
     resdata.forEach((item, index) => {
-      const currentCityStr = chineseCity(item.city);
-      const statusStr = item.status === "new_lost" ? "新增報案車輛" : (item.status ? "今日尋回車輛" : "");
+      // 從我們的 options 裡面找出對應的中文名
+      const matchedCity = cityOptions.value.find(opt => opt.value === item.city);
+      const currentCityStr = matchedCity ? matchedCity.label : item.city;
+      
+      const statusStr = item.status === "new_lost" ? "新增報案車輛" : (item.status === "recovered" ? "今日尋回車輛" : item.status);
 
       if (index === 0) {
         arr.push({
@@ -203,10 +218,10 @@ const getdata = async () => {
         const prev = resdata[index - 1];
         const isSameCity = item.city === prev.city;
         const isSameSys = isSameCity && item.sys === prev.sys;
-        const isSameTotal = item.total === prev.total;
+        const isSameTotal = isSameSys && item.total === prev.total;
 
         arr.push({
-          item1: isSameCity ? "" : currentCityStr, // 若與上一筆城市相同則留白
+          item1: isSameCity ? "" : currentCityStr,
           item2: isSameSys ? "" : (item.sys ?? ""),
           item3: isSameTotal ? "" : (item.total ?? ""),
           item4: statusStr,
@@ -218,12 +233,11 @@ const getdata = async () => {
     totaldata.value = arr;
     makeExecl(totaldata.value, "遺失車報表");
 
-    // 搜尋成功後回到第一頁
     if (dataTable.value?.page) dataTable.value.page(1);
 
   } catch (error) {
     console.error("API Error:", error);
-    NotCityAlert("查詢失敗，請稍後再試");
+    NotCityAlert("查詢失敗");
   } finally {
     isLoading.value = false;
   }
@@ -236,4 +250,14 @@ const search = async () => {
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+/* 🚀 灰色行樣式 (#e8e8e8) */
+:deep(.gray-row td) {
+  background-color: #e8e8e8 !important;
+}
+
+/* 確保滑鼠移過去的高亮色 */
+:deep(.n-data-table .n-data-table-tr.gray-row:hover td) {
+  background-color: #e6f7ff !important;
+}
+</style>

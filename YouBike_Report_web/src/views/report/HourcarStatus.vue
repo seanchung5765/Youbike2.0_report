@@ -9,198 +9,302 @@
       <h1 class="report-h1 fw-bold">每小時車輛狀態</h1>
     </div>
 
-    <!-- 🚀 鐵壁防禦排版：強制單行、不換行、橫向捲軸 -->
     <form
-      class="mx-0 py-2 px-3"
+      class="row mx-0"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
-      style="display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; overflow-x: auto;"
     >
-      <!-- 城市選擇 -->
-      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
-        <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
-        <div style="width: 150px;">
-          <n-select
-            v-model:value="cityvalue"
-            placeholder="請選擇"
-            multiple
-            :options="cityOptions"
-            :max-tag-count="1"
-            size="medium"
+      <div class="row align-items-center col-md-auto col-12 pe-0">
+        <label class="col-md-auto col-form-label fw-bolder pe-0">城市:</label>
+      </div>
+      <div class="row mx-0 mx-md-2 align-items-center col-md-2 col-12">
+        <n-select
+          class="px-0"
+          v-model:value="cityvalue"
+          placeholder="請選擇"
+          multiple
+          :options="options"
+          :max-tag-count="1"
+          size="medium"
+        />
+      </div>
+      <div class="row align-items-center col-md-auto col-12 pe-0">
+        <label class="col-md-auto col-form-label fw-bolder pe-0">時段:</label>
+      </div>
+      <div class="row mx-0 mx-md-2 align-items-center col-md-2 col-12">
+        <n-select
+          class="px-0"
+          v-model:value="hoursValue"
+          placeholder="請選擇"
+          multiple
+          :options="gethours()"
+          :max-tag-count="1"
+          size="medium"
+        />
+      </div>
+      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
+        <div
+          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
+        >
+          <n-date-picker
+            class="px-0"
+            v-model:formatted-value="starttimestamp"
+            type="date"
+            :actions="null"
+            :input-readonly="true"
+            :update-value-on-close="true"
+            default-time="2023-06-20"
+            placeholder="開始日期"
+            value-format="yyyy-MM-dd"
+            :is-date-disabled="disablestartDate"
+          />
+        </div>
+        <div
+          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
+        >
+          <n-date-picker
+            class="px-0"
+            v-model:formatted-value="endtimestamp"
+            type="date"
+            :actions="null"
+            :input-readonly="true"
+            :is-date-disabled="disableEndDate"
+            :update-value-on-close="true"
+            placeholder="結束日期"
+            value-format="yyyy-MM-dd"
           />
         </div>
       </div>
-
-      <!-- 時段選擇 -->
-      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
-        <label class="fw-bolder mb-0" style="white-space: nowrap;">時段:</label>
-        <div style="width: 120px;">
-          <n-select
-            v-model:value="hoursValue"
-            placeholder="請選擇"
-            multiple
-            :options="hourOptions"
-            :max-tag-count="1"
-            size="medium"
-          />
-        </div>
-      </div>
-
-      <!-- 開始日期 -->
-      <div style="width: 140px; flex-shrink: 0; margin-left: 8px;">
-        <n-date-picker
-          v-model:formatted-value="starttimestamp"
-          type="date"
-          :actions="null"
-          :input-readonly="true"
-          :update-value-on-close="true"
-          placeholder="開始日期"
-          value-format="yyyy-MM-dd"
-          :is-date-disabled="disablestartDate"
-        />
-      </div>
-
-      <span class="fw-bold" style="flex-shrink: 0;">至</span>
-
-      <!-- 結束日期 -->
-      <div style="width: 140px; flex-shrink: 0;">
-        <n-date-picker
-          v-model:formatted-value="endtimestamp"
-          type="date"
-          :actions="null"
-          :input-readonly="true"
-          :update-value-on-close="true"
-          placeholder="結束日期"
-          value-format="yyyy-MM-dd"
-          :is-date-disabled="disableEndDate"
-        />
-      </div>
-
-      <!-- 按鈕群組 -->
-      <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: 8px;">
+      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
         <button
           type="button"
-          class="btn btn-info text-light"
-          style="white-space: nowrap;"
+          class="btn btn-info text-light mt-3 mt-md-0 col-md-auto mx-md-2"
           @click="cleardate"
         >
           清空日期
         </button>
         <button
           type="button"
-          class="btn btn-success text-light"
-          style="white-space: nowrap;"
+          class="btn btn-success text-light mt-3 mt-md-0 col-md-auto mx-md-2"
           @click="search"
         >
           搜尋
         </button>
+
         <output-excel
-          class="btn btn-primary text-light"
-          style="white-space: nowrap;"
+          class="btn btn-primary text-light mt-3 mt-md-0 col-md-auto mx-md-2"
           :data="exceldata"
           :name="excelename"
           :header="excelecolumn"
         />
       </div>
     </form>
-
     <n-data-table
       v-show="totaldata.length > 0"
       ref="dataTable"
       size="small"
       :columns="columns"
       :data="totaldata"
-      :pagination="{ pageSize: 15 }"
+      :pagination="{ pageSize: 13 }"
       :max-height="600"
-      :scroll-x="1200"
+      :scroll-x="1000"
       :bordered="false"
       :single-line="false"
       striped
+      :row-class-name="rowClassName" 
     />
   </div>
 </template>
 
 <script setup>
-import { ref, inject, computed } from "vue";
+import { ref, inject, onMounted } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
+import OutputExcel from "../../components/OutputExcel.vue";
 import { NDataTable, NDatePicker, NSelect } from "naive-ui";
 import { useUserStore } from "../../stores/userdata";
-import OutputExcel from "../../components/OutputExcel.vue";
-// 🚀 引入共用 API
-import { getGcpReport } from "@/api/report";
+
+// 1. 正規化：透過 src/api 呼叫，完全拔除 axios
+import { getAllCities } from "@/api/admin";
+import { getGcpReport } from "@/api/report"; // 請確認你的報告 API 是這支
 
 const store = useUserStore();
 const canusecitys = store.citys || [];
+
+//亮亮模式暗暗模式切換
 const ischange = inject("ischange");
 const swal = inject("$swal");
-
 async function NotCityAlert(text) {
-  swal({ icon: "error", title: text, showConfirmButton: false });
+  swal({
+    icon: "error",
+    title: `${text}`,
+    showConfirmButton: false,
+  });
 }
+const starttimestamp = ref();
+const endtimestamp = ref();
 
 const isLoading = ref(false);
 const dataTable = ref(null);
 const totaldata = ref([]);
 
-const cityvalue = ref([]);
-const hoursValue = ref([]);
-const starttimestamp = ref(null);
-const endtimestamp = ref(null);
-
 let exceldata = [];
 let excelename = "";
 let excelecolumn = [];
 
-// --- 🚀 動態生成城市選項 ---
-const cityOptions = computed(() => {
-  const map = [
-    { label: "台北市", value: "Taipei", auth: 2 },
-    { label: "新北市", value: "Newtaipei", auth: 3 },
-    { label: "桃園市", value: "Taoyuan", auth: 4 },
-    { label: "新竹市", value: "Hsinchu", auth: 5 },
-    { label: "新竹縣", value: "Hsinchu_Country", auth: 6 },
-    { label: "竹科", value: "HsinchuScience", auth: 20 },
-    { label: "苗栗縣", value: "Miaoli", auth: 7 },
-    { label: "台中市", value: "Taichung", auth: 8 },
-    { label: "嘉義市", value: "Chiayi", auth: 12 },
-    { label: "嘉義縣", value: "Chiayi_Country", auth: 13 },
-    { label: "台南市", value: "Tainan", auth: 14 },
-    { label: "高雄市", value: "Kaohsiung", auth: 15 },
-    { label: "屏東縣", value: "Pingtung", auth: 16 },
-    { label: "台東縣", value: "Taitung", auth: 19 },
-  ];
-  return map.map(c => ({
-    label: c.label,
-    value: c.value,
-    disabled: !canusecitys.includes(c.auth)
-  }));
+const makeExecl = (nowdata, nowcolumn, name) => {
+  exceldata = [];
+  excelename = "";
+  excelecolumn = [];
+  exceldata = [...nowdata];
+  excelename = name;
+  nowcolumn.forEach((item) => {
+    excelecolumn.push(item.title);
+  });
+};
+
+const cityvalue = ref([]);
+const options = ref([]);
+
+// 2. 動態載入縣市邏輯
+const loadCities = async () => {
+  try {
+    const res = await getAllCities();
+    const dbCities = res.data.data || [];
+
+    const fallbackBqMap = {
+      2: "Taipei", 3: "Newtaipei", 4: "Taoyuan", 5: "Hsinchu", 6: "Hsinchu_Country",
+      20: "HsinchuScience", 7: "Miaoli", 8: "Taichung", 12: "Chiayi", 13: "Chiayi_Country",
+      14: "Tainan", 15: "Kaohsiung", 16: "Pingtung", 19: "Taitung"
+    };
+
+    options.value = dbCities.map(c => {
+      let gcpVal = "";
+      if (c.codes) {
+        gcpVal = c.codes.split(',')[0].trim();
+      } else {
+        gcpVal = fallbackBqMap[c.city_id] || "";
+      }
+
+      return {
+        label: c.city_name,
+        value: gcpVal,
+        disabled: !canusecitys.includes(c.city_id)
+      };
+    }).filter(opt => opt.value !== ""); 
+  } catch (error) {
+    console.error("載入縣市失敗:", error);
+  }
+};
+
+onMounted(() => {
+  loadCities();
 });
 
-// --- 🚀 動態生成 0~23 時段選項 (一行搞定) ---
-const hourOptions = Array.from({ length: 24 }, (_, i) => ({ label: `${i}時`, value: i }));
+// 🌟 3. 一灰一白斑馬紋設定
+const rowClassName = (row, index) => {
+  return index % 2 === 1 ? 'gray-row' : '';
+};
 
-// --- 🚀 日期防呆邏輯極簡化 (縮減 70% 代碼) ---
-const MIN_DATE = new Date(2024, 0, 1).getTime(); // 2024-01-01
-const getTodayEnd = () => new Date().setHours(23, 59, 59, 999);
+const hoursValue = ref([]);
+//把counts 變成0~23
+function gethours() {
+  let arr = [];
+  for (let index = 0; index < 24; index++) {
+    arr.push({
+      label: index,
+      value: index,
+    });
+  }
+  return arr;
+}
+
+function formatDate(selectDate) {
+  const dateObject = new Date(selectDate);
+  const year = dateObject.getFullYear();
+  const month = (dateObject.getMonth() + 1).toString().padStart(2, "0");
+  const day = dateObject.getDate().toString().padStart(2, "0");
+  const formattedDate = year + "-" + month + "-" + day;
+  return formattedDate;
+}
 
 const disablestartDate = (ts) => {
-  if (ts < MIN_DATE || ts > getTodayEnd()) return true;
-  if (endtimestamp.value) {
-    const end = new Date(endtimestamp.value).getTime();
-    const thirtyDaysAgo = end - 30 * 24 * 60 * 60 * 1000;
-    return ts < thirtyDaysAgo || ts > end;
+  const endDateValue = endtimestamp.value;
+  const currentDate = new Date();
+  currentDate.setHours(0, 0, 0, 0); 
+
+  const date = new Date(ts);
+  const year = date.getFullYear();
+  if (year < 2024) {
+    return true;
   }
-  return false;
+
+  if (endDateValue) {
+    const endDate = new Date(endDateValue);
+    endDate.setHours(0, 0, 0, 0); 
+
+    const startDate = new Date(endDate);
+    startDate.setDate(startDate.getDate() - 30);
+
+    const selectedDate = new Date(ts);
+    selectedDate.setHours(0, 0, 0, 0); 
+
+    if (
+      selectedDate < startDate ||
+      selectedDate > endDate ||
+      selectedDate > currentDate
+    ) {
+      return true;
+    }
+  } else {
+    const selectedDate = new Date(ts);
+    selectedDate.setHours(0, 0, 0, 0); 
+
+    if (selectedDate > currentDate) {
+      return true;
+    }
+  }
 };
 
 const disableEndDate = (ts) => {
-  if (ts < MIN_DATE || ts > getTodayEnd()) return true;
-  if (starttimestamp.value) {
-    const start = new Date(starttimestamp.value).getTime();
-    const thirtyDaysAfter = start + 30 * 24 * 60 * 60 * 1000;
-    return ts < start || ts > thirtyDaysAfter;
+  const startDateValue = starttimestamp.value;
+  const currentDate = new Date();
+  currentDate.setHours(0, 0, 0, 0); 
+
+  const date = new Date(ts);
+  const year = date.getFullYear();
+  if (year < 2024) {
+    return true;
   }
-  return false;
+
+  if (startDateValue) {
+    const startDate = new Date(startDateValue);
+    startDate.setHours(0, 0, 0, 0); 
+
+    if (startDate > currentDate) {
+      return true;
+    }
+
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 30);
+
+    const selectedDate = new Date(ts);
+    selectedDate.setHours(0, 0, 0, 0); 
+
+    if (
+      selectedDate < startDate ||
+      selectedDate > endDate ||
+      selectedDate > currentDate
+    ) {
+      return true;
+    }
+  } else {
+    const selectedDate = new Date(ts);
+    selectedDate.setHours(0, 0, 0, 0); 
+
+    if (selectedDate > currentDate) {
+      return true;
+    }
+  }
 };
 
 const cleardate = () => {
@@ -208,8 +312,7 @@ const cleardate = () => {
   endtimestamp.value = null;
 };
 
-// --- 表頭設定 ---
-const columns = [
+const columns = ref([
   { key: "item1", align: "center", title: "日期" },
   { key: "item2", align: "center", title: "時段" },
   { key: "item3", align: "center", title: "縣市" },
@@ -222,80 +325,87 @@ const columns = [
   { key: "item10", align: "center", title: "合約車輛數" },
   { key: "item11", align: "center", title: "境內車輛數占比" },
   { key: "item12", align: "center", title: "差異數" },
-];
+]);
 
-const makeExecl = (nowdata, name) => {
-  exceldata = [...nowdata];
-  excelename = name;
-  excelecolumn = columns.map(col => col.title);
-};
+function makeData(data) {
+  totaldata.value = [];
+  totaldata.value = data.map((item) => {
+    return {
+      item1: formatDate(item.date),
+      item2: item.hour,
+      item3: item.city,
+      item4: item.sys,
+      item5: item.in_station,
+      item6: item.use,
+      item7: item.repair,
+      item8: item.dispatch,
+      item9: item.total,
+      item10: item.bike_number,
+      item11: item.percentage,
+      item12: item.different,
+    };
+  });
+}
 
-// --- API 請求與資料處理 ---
 const getData = async () => {
+  const params = {
+    dataset_id: "report",
+    table_id: "bike_checklist_hour_report",
+    begin_date: starttimestamp.value,
+    end_date: endtimestamp.value,
+    city: [...cityvalue.value],
+    hour: hoursValue.value,
+  };
+  
   try {
     isLoading.value = true;
-    const params = {
-      dataset_id: "report",
-      table_id: "bike_checklist_hour_report",
-      begin_date: starttimestamp.value,
-      end_date: endtimestamp.value,
-      city: cityvalue.value, // Vue 3 的 ref array 直接丟進去即可
-      hour: hoursValue.value,
-    };
-
-    // 🚀 使用共用 API 發送
+    // 🌟 透過集中管理的 src/api 呼叫
     const res = await getGcpReport(params);
-    const resdata = res.data?.data || [];
-
-    // 💡 整理資料，加入 ?? 保底避免空白，並穩固日期格式
-    totaldata.value = resdata.map((item) => {
-      let formattedDate = "";
-      if (item.date) {
-        // 使用 new Date() 讓瀏覽器自動解析各種複雜的時間字串
-        const d = new Date(item.date);
-        const year = d.getFullYear();
-        const month = (d.getMonth() + 1).toString().padStart(2, "0");
-        const day = d.getDate().toString().padStart(2, "0");
-        // 組合成漂亮的 YYYY-MM-DD
-        formattedDate = `${year}-${month}-${day}`; 
-      }
-
-      return {
-        item1: formattedDate,
-        item2: item.hour ?? "-",
-        item3: item.city ?? "-",
-        item4: item.sys ?? "-",
-        item5: item.in_station ?? 0,
-        item6: item.use ?? 0,
-        item7: item.repair ?? 0,
-        item8: item.dispatch ?? 0,
-        item9: item.total ?? 0,
-        item10: item.bike_number ?? 0,
-        item11: item.percentage ?? "0%",
-        item12: item.different ?? 0,
-      };
-    });
-
-    makeExecl(totaldata.value, "每小時車輛狀態");
-    
-    // 搜尋成功後回到第一頁
-    if (dataTable.value?.page) dataTable.value.page(1);
-
-  } catch (error) {
-    console.error("API Error:", error);
-    NotCityAlert("查詢失敗，請稍後再試");
-  } finally {
     isLoading.value = false;
+    
+    // axios 封裝通常回傳結構會包在 data 裡面
+    const resdata = res.data.data || []; 
+
+    makeData(resdata);
+
+    if (dataTable.value) {
+      dataTable.value.page(1);
+    }
+    makeExecl(totaldata.value, columns.value, "每小時車輛狀態");
+  } catch (error) {
+    isLoading.value = false;
+    console.error(error);
+    swal({ icon: "error", title: "查詢失敗，請檢查網路狀態或條件" });
   }
 };
 
 const search = () => {
-  if (cityvalue.value.length === 0) return NotCityAlert("請選擇城市");
-  if (hoursValue.value.length === 0) return NotCityAlert("請選擇小時");
-  if (!starttimestamp.value) return NotCityAlert("請選擇開始日期");
-  if (!endtimestamp.value) return NotCityAlert("請選擇結束日期");
+  if (cityvalue.value.length === 0) {
+    NotCityAlert("請選擇城市");
+    return;
+  } else if (hoursValue.value.length === 0) {
+    NotCityAlert("請選擇小時");
+    return;
+  } else if (!starttimestamp.value) {
+    NotCityAlert("請選擇開始日期");
+    return;
+  } else if (!endtimestamp.value) {
+    NotCityAlert("請選擇結束日期");
+    return;
+  }
+
   getData();
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+/* 🚀 灰色行的背景顏色 */
+:deep(.gray-row td) {
+  background-color: #e8e8e8 !important;
+}
+
+/* 確保滑鼠移過去時有回饋顏色 */
+:deep(.n-data-table .n-data-table-tr.gray-row:hover td) {
+  background-color: #d1d1d1 !important;
+}
+</style>

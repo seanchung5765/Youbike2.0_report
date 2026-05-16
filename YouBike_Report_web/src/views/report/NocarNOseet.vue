@@ -9,13 +9,11 @@
       <h1 class="report-h1 fw-bold">無車無位統計</h1>
     </div>
 
-    <!-- 🚀 鐵壁防禦排版：強制單行、不換行、橫向捲軸 -->
     <form
       class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
       style="display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; overflow-x: auto;"
     >
-      <!-- 類別 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">類別:</label>
         <div style="width: 100px;">
@@ -23,15 +21,6 @@
         </div>
       </div>
 
-      <!-- 系統別 -->
-      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
-        <label class="fw-bolder mb-0" style="white-space: nowrap;">系統別:</label>
-        <div style="width: 120px;">
-          <n-select v-model:value="sysCategory" :options="sysOptions" @update:value="city = []" placeholder="請選擇" />
-        </div>
-      </div>
-
-      <!-- 城市與全選 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">城市:</label>
         <div style="width: 160px;">
@@ -42,7 +31,6 @@
         </button>
       </div>
 
-      <!-- 項目 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">項目:</label>
         <div style="width: 140px;">
@@ -50,7 +38,6 @@
         </div>
       </div>
 
-      <!-- 狀態 -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">狀態:</label>
         <div style="width: 100px;">
@@ -58,9 +45,7 @@
         </div>
       </div>
 
-      <!-- 🚀 日期區間 (依類別動態切換) -->
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; border-left: 2px solid #ccc; padding-left: 12px;">
-        <!-- 日報 -->
         <template v-if="itemcategory === 'day_empty_full'">
           <div style="width: 140px;">
             <n-date-picker v-model:formatted-value="dateState.start1" type="date" value-format="yyyy-MM-dd" placeholder="開始日期" :is-date-disabled="disableDailyStart" clearable />
@@ -71,7 +56,6 @@
           </div>
         </template>
 
-        <!-- 週報 -->
         <template v-else-if="itemcategory === 'weekly_empty_full'">
           <div style="width: 140px;">
             <n-date-picker v-model:formatted-value="dateState.start2" type="date" value-format="yyyy-MM-dd" placeholder="週一開始" :is-date-disabled="disableWeeklyStart" clearable />
@@ -82,7 +66,6 @@
           </div>
         </template>
 
-        <!-- 月報 -->
         <template v-else-if="itemcategory === 'monthly_empty_full'">
           <div style="width: 140px;">
             <n-date-picker v-model:formatted-value="dateState.start3" type="month" value-format="yyyy-MM" placeholder="開始月份" :is-date-disabled="disableMonthlyStart" clearable />
@@ -93,11 +76,10 @@
           </div>
         </template>
         
-        <button v-if="itemcategory" type="button" class="btn btn-sm btn-info text-light" style="white-space: nowrap;" @click="cleardateall">清空</button>
+        <button type="button" class="btn btn-sm btn-info text-light" style="white-space: nowrap;" @click="cleardateall">清空</button>
       </div>
 
-      <!-- 搜尋匯出 -->
-      <div style="display: flex; flex-shrink: 0; margin-left: auto;">
+      <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
         <button type="button" class="btn btn-primary text-light" style="white-space: nowrap;" @click="search">
           搜尋匯出
         </button>
@@ -109,14 +91,15 @@
 </template>
 
 <script setup>
-import { ref, inject, computed, reactive } from "vue";
+import { ref, inject, reactive, onMounted } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
+// 🚀 引入 NResult 提示框與 XLSX 下載工具
 import { NDatePicker, NSelect, NResult } from "naive-ui";
-import { useUserStore } from "../../stores/userdata";
 import * as XLSX from "xlsx";
-// 🚀 引入共用 API
+import { useUserStore } from "../../stores/userdata";
 import { getGcpReport } from "@/api/report";
+import { getAllCities } from "@/api/admin";
 
 const store = useUserStore();
 const canusecitys = store.citys || [];
@@ -129,64 +112,62 @@ async function errorAlert(text) {
 
 const isLoading = ref(false);
 
-// --- 🚀 選單選項 (資料驅動) ---
 const categoryOptions = [
   { label: "日報", value: "day_empty_full" },
   { label: "週報", value: "weekly_empty_full" },
   { label: "月報", value: "monthly_empty_full" }
 ];
-const sysOptions = [
-  { label: "1.0", value: "1.0" },
-  { label: "2.0+2.0E", value: "2.0" }
-];
+
 const itemOptions = ["無車5分鐘", "無車10分鐘", "無車20分鐘", "無車30分鐘", "無位5分鐘", "無位10分鐘", "無位20分鐘", "無位30分鐘"].map(v => ({ label: v, value: v }));
 const statusOptions = [{ label: "分鐘", value: "分鐘" }, { label: "次數", value: "次數" }];
 
-const itemcategory = ref(null);
-const sysCategory = ref(null);
+const itemcategory = ref("day_empty_full");
 const city = ref([]);
 const item = ref(null);
 const status = ref([]);
 
-// 🚀 城市選單 (依據系統別連動 Computed)
-const cityOptions = computed(() => {
-  if (!sysCategory.value) return [];
-  const map = sysCategory.value === "1.0" 
-    ? [ { label: "新北市", value: "新北市", auth: 3 }, { label: "桃園市", value: "桃園市", auth: 4 }, { label: "苗栗縣", value: "苗栗縣", auth: 7 } ]
-    : [
-        { label: "台北市", value: "台北市", auth: 2 }, { label: "新北市", value: "新北市", auth: 3 },
-        { label: "桃園市", value: "桃園市", auth: 4 }, { label: "新竹市", value: "新竹市", auth: 5 },
-        { label: "新竹縣", value: "新竹縣", auth: 6 }, { label: "竹科", value: "竹科", auth: 20 },
-        { label: "苗栗縣", value: "苗栗縣", auth: 7 }, { label: "台中市", value: "台中市", auth: 8 },
-        { label: "嘉義市", value: "嘉義市", auth: 12 }, { label: "嘉義縣", value: "嘉義縣", auth: 13 },
-        { label: "台南市", value: "台南市", auth: 14 }, { label: "高雄市", value: "高雄市", auth: 15 },
-        { label: "屏東縣", value: "屏東縣", auth: 16 }, { label: "台東縣", value: "台東縣", auth: 19 }
-      ];
-  return map.filter(c => canusecitys.includes(c.auth));
-});
+// 城市選單 (資料庫取得)
+const cityOptions = ref([]);
 
-const searchcityall = () => { city.value = cityOptions.value.map(c => c.value); };
+const loadCities = async () => {
+  try {
+    const res = await getAllCities();
+    const dbCities = res.data.data || [];
 
-// --- 🚀 日期狀態集中管理 ---
+    cityOptions.value = dbCities
+      .filter(c => c.status === 'active')
+      .map(c => ({
+        label: c.city_name,
+        value: c.city_name, 
+        disabled: !canusecitys.includes(c.city_id)
+      }));
+  } catch (error) {
+    console.error("載入縣市失敗:", error);
+  }
+};
+
+const searchcityall = () => { 
+  city.value = cityOptions.value.filter(c => !c.disabled).map(c => c.value); 
+};
+
+// --- 日期狀態集中管理 ---
 const dateState = reactive({
-  start1: null, end1: null, // 日報
-  start2: null, end2: null, // 週報
-  start3: null, end3: null  // 月報
+  start1: null, end1: null, 
+  start2: null, end2: null, 
+  start3: null, end3: null  
 });
 
 const cleardateall = () => {
   Object.keys(dateState).forEach(k => dateState[k] = null);
 };
 
-// --- 🚀 時間防呆邏輯極簡化 (縮短了 150 行) ---
-const MIN_DATE = new Date(2023, 0, 1).getTime(); // 2023-01-01
+// --- 時間防呆邏輯 ---
+const MIN_DATE = new Date(2023, 0, 1).getTime(); 
 const getTodayStart = () => new Date().setHours(0, 0, 0, 0);
 
-// 1. 日報 (限制 30 天，不可選未來)
 const disableDailyStart = (ts) => ts < MIN_DATE || ts >= getTodayStart() || (dateState.end1 && (ts > new Date(dateState.end1).getTime() || ts < new Date(dateState.end1).getTime() - 30 * 86400000));
 const disableDailyEnd = (ts) => ts < MIN_DATE || ts >= getTodayStart() || (dateState.start1 && (ts < new Date(dateState.start1).getTime() || ts > new Date(dateState.start1).getTime() + 30 * 86400000));
 
-// 2. 週報 (限制只能選禮拜一，限制 4 週 / 27 天差)
 const disableWeeklyStart = (ts) => {
   const d = new Date(ts);
   if (d.getDay() !== 1 || ts < MIN_DATE || ts >= getTodayStart()) return true;
@@ -198,7 +179,6 @@ const disableWeeklyEnd = (ts) => {
   return dateState.start2 && (ts < new Date(dateState.start2).getTime() || ts > new Date(dateState.start2).getTime() + 27 * 86400000);
 };
 
-// 3. 月報 (限制 12 個月)
 const disableMonthlyStart = (ts) => {
   const d = new Date(ts);
   const now = new Date();
@@ -218,19 +198,22 @@ const disableMonthlyEnd = (ts) => {
   return d < startD || monthDiff >= 12;
 };
 
-// --- 表頭動態生成 ---
-const columns = [
+// --- 🚀 Excel 匯出邏輯 (一鍵自動下載) ---
+const dynamicColumns = [
   "date", "責任區", "場站代號", "站名", "狀態", "項目",
-  ...Array.from({ length: 24 }, (_, i) => `${i}`), // 0 ~ 23
+  ...Array.from({ length: 24 }, (_, i) => `${i}`), 
   "總計"
 ];
 
-const makeExecl = (nowdata, name) => {
-  if (!nowdata || !nowdata.length) return errorAlert("空資料不能匯出");
+const makeExecl = (nowdata, dynamicColumns, name) => {
+  if (!nowdata || nowdata.length === 0) return errorAlert("查詢結果為空，無法匯出");
+  
   const workbook = XLSX.utils.book_new();
-  const worksheet = XLSX.utils.json_to_sheet(nowdata, { skipHeader: true }); // 防止印出 item 屬性
-  XLSX.utils.book_append_sheet(workbook, worksheet, "sheet1");
-  XLSX.utils.sheet_add_aoa(worksheet, [columns], { origin: "A1" });
+  const worksheet = XLSX.utils.json_to_sheet(nowdata, { skipHeader: true }); // 跳過屬性名稱(item1, item2...)
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+  // 插入中文表頭
+  XLSX.utils.sheet_add_aoa(worksheet, [dynamicColumns], { origin: "A1" });
+  
   XLSX.writeFile(workbook, `${name}.xlsx`);
 };
 
@@ -255,14 +238,12 @@ const getData = async () => {
       city: city.value,
       item: item.value,
       status: status.value,
-      sys: sysCategory.value,
+      sys: "2.0", 
     };
 
-    // 🚀 使用共用 API
     const res = await getGcpReport(params);
     const resdata = res.data?.data || [];
 
-// 💡 🚀 透過迴圈動態產出 0~23 小時的資料，並加入穩定的日期轉換
     const formattedData = resdata.map(element => {
       let formattedDate = "";
       if (element.date) {
@@ -274,7 +255,7 @@ const getData = async () => {
       }
 
       const row = {
-        item1: formattedDate, // 🚀 改用格式化後的日期
+        item1: formattedDate, 
         item2: element.responsible_area ?? "",
         item3: element.s_no ?? "",
         item4: element.s_name ?? "",
@@ -282,7 +263,6 @@ const getData = async () => {
         item6: element.item ?? "",
       };
       
-      // 動態填寫 r0 到 r23
       for (let i = 0; i < 24; i++) {
         row[`item${i + 7}`] = element[`r${i}`] ?? 0;
       }
@@ -290,11 +270,12 @@ const getData = async () => {
       return row;
     });
 
-    makeExecl(formattedData, "無車無位統計");
+    // 🚀 查完立刻自動觸發 Excel 下載
+    makeExecl(formattedData, dynamicColumns, "無車無位統計");
 
   } catch (error) {
     console.error("API Error:", error);
-    errorAlert("查詢失敗，請稍後再試");
+    errorAlert("查詢或匯出失敗，請稍後再試");
   } finally {
     isLoading.value = false;
   }
@@ -302,7 +283,6 @@ const getData = async () => {
 
 const search = () => {
   if (!itemcategory.value) return errorAlert("請選擇類別");
-  if (!sysCategory.value) return errorAlert("請選擇系統別");
   if (!city.value.length) return errorAlert("請選擇城市");
   if (!item.value) return errorAlert("請選擇項目");
   if (!status.value.length) return errorAlert("請選擇狀態");
@@ -313,6 +293,12 @@ const search = () => {
 
   getData();
 };
+
+onMounted(() => {
+  loadCities();
+});
 </script>
 
-<style scoped></style>
+<style scoped>
+/* 由於無資料表預覽，斑馬紋的 CSS 已移除，確保組件乾淨 */
+</style>

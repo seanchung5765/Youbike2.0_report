@@ -1,16 +1,12 @@
-
-
-
+// 1. 載入 Bootstrap 函數與自定義變數
 @import "bootstrap/scss/functions";
 @import "./helpers/variables";
 @import "bootstrap/scss/bootstrap";
 
-@import "../assets//helpers/reportcss/report_header";
-@import "../assets/helpers/reportcss/report_title_color";
-@import "../assets/helpers/reportcss/report_line-hight";
+// 2. 載入自定義的報表 CSS
+@import "./helpers/reportcss/report_header";
+@import "./helpers/reportcss/report_title_color";
+@import "./helpers/reportcss/report_line-hight"; // 注意：這裡拼字可能是 line-height? 
 
-
-
-
-//整體字形
-@import "../assets/helpers/font_NotoSans";
+// 3. 載入整體字形
+@import "./helpers/font_NotoSans";

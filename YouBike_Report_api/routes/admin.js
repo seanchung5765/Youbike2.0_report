@@ -92,34 +92,35 @@ router.get('/role/:id', isAuth, async (req, res, next) => {
 router.patch('/role/:id', isAuth, async (req, res, next) => {
   try {
     const id = req.params.id; 
-    const { role, name } = req.body; 
+    const { role } = req.body; 
     
-    //確保 operatorId 絕對不會是 undefined
-    // 如果 req.user.emp_id 不存在，就給 'System'
+    // 自動去 LDAP 抓取正確姓名
+    const ldapName = await searchUser(id);
+    if (!ldapName) return res.status(404).json({ message: "LDAP 查無此工號" });
+
     const operatorId = (req.user && req.user.userId) ? req.user.userId : 'System';
-    
-    //檢查其他參數，預防萬一
     const safeRole = role !== undefined ? role : null;
-    const safeName = name || id || 'Unknown';
 
     const query = `
-      INSERT INTO users (emp_id, name, role_id, is_active, created_by, updated_by) 
-      VALUES (?, ?, ?, 1, ?, ?)
+      INSERT INTO users (
+        emp_id, name, role_id, is_active, created_by, 
+        role_updated_by, role_updated_at, 
+        updated_by, updated_at
+      ) 
+      VALUES (?, ?, ?, 1, ?, ?, NOW(), ?, NOW())
       ON DUPLICATE KEY UPDATE 
+        name = ?,
         role_id = ?, 
         is_active = 1, 
-        updated_by = ?
+        role_updated_by = ?, 
+        role_updated_at = NOW(),
+        updated_by = ?,        -- 🚀 紀錄這筆帳號最後是被誰動的 (不論動什麼)
+        updated_at = NOW()
     `;
 
-    // 依照順序填入參數，確保沒有任何一個是 undefined
     const params = [
-      id,           // emp_id
-      safeName,     // name
-      safeRole,     // role_id
-      operatorId,   // created_by
-      operatorId,   // updated_by
-      safeRole,     // role_id (UPDATE)
-      operatorId    // updated_by (UPDATE)
+      id, ldapName, safeRole, operatorId, operatorId, operatorId, // INSERT
+      ldapName, safeRole, operatorId, operatorId                  // UPDATE
     ];
 
     await useGCPMysql(query, params);
@@ -180,7 +181,6 @@ router.get('/role_pages/:id', isAuth, async (req, res, next) => {
 // 10. GET /pages - 取得所有系統選單頁面
 router.get('/pages', isAuth, async (req, res, next) => {
   try {
-    // 利用 SELF JOIN，把 parent_id 對應的資料夾名稱 (category_name) 撈出來
     const query = `
       SELECT 
         c.id as page_id, 
@@ -189,9 +189,11 @@ router.get('/pages', isAuth, async (req, res, next) => {
       FROM system_menus c
       LEFT JOIN system_menus p ON c.parent_id = p.id
       WHERE c.route_code IS NOT NULL 
-        AND c.route_code != ''               -- 🔒 防線 1：排除空字串
-        AND c.parent_id IS NOT NULL          -- 🔒 防線 2：它必須要有爸爸 (排除大分類本身)
-        AND c.parent_id != 0                 -- 🔒 預防有些 DB 預設值是 0
+        AND c.route_code != '' 
+        AND c.parent_id IS NOT NULL 
+        AND c.parent_id != 0 
+        AND c.route_code NOT LIKE 'folder_%'
+        AND c.is_active = 1 
       ORDER BY c.parent_id, c.id
     `;
     const rows = await useGCPMysql(query);
@@ -298,21 +300,46 @@ router.get('/usercity/:id', isAuth, async (req, res, next) => {
 // 15. GET /citys - 取得所有地區
 router.get('/citys', isAuth, async (req, res, next) => {
   try {
-    const query = `SELECT id as city_id, name as city_name, status FROM regions ORDER BY id`;
+    // 🌟 這裡加上 codes 欄位
+    const query = `SELECT id as city_id, name as city_name, codes, status FROM regions ORDER BY id`;
     const rows = await useGCPMysql(query);
     res.status(200).json({ message: true, data: rows });
   } catch (error) { next(error); }
 });
 
-// 16. PUT /role_citys/:empid - 更新使用者擁有的城市權限 (對應 RolecityView.vue)
+// 16. PUT /role_citys/:empid - 更新使用者擁有的城市權限
 router.put('/role_citys/:empid', isAuth, async (req, res, next) => {
   try {
     const emp_id = req.params.empid; 
-    const payload = req.body; // [{city_id: 1}, ...]
+    const payload = req.body; 
     
-    // 先找出 user 的內部 ID (PK)
+    const ldapName = await searchUser(emp_id);
+    const finalName = ldapName || emp_id;
+
+    const operatorId = (req.user && req.user.userId) ? req.user.userId : 'System';
+
+    // 🚀 同時更新 region 專屬欄位與通用 updated 欄位
+    await useGCPMysql(
+      `INSERT INTO users (
+         emp_id, name, is_active, created_by, 
+         region_updated_by, region_updated_at, 
+         updated_by, updated_at
+       ) 
+       VALUES (?, ?, 1, ?, ?, NOW(), ?, NOW()) 
+       ON DUPLICATE KEY UPDATE 
+         name = ?,
+         is_active = 1, 
+         region_updated_by = ?, 
+         region_updated_at = NOW(),
+         updated_by = ?,      -- 🚀 紀錄這筆帳號最後是被誰動的
+         updated_at = NOW()`,
+      [
+        emp_id, finalName, operatorId, operatorId, operatorId, // INSERT
+        finalName, operatorId, operatorId                      // UPDATE
+      ] 
+    );
+
     const users = await useGCPMysql("SELECT id FROM users WHERE emp_id = ?", [emp_id]);
-    if (users.length === 0) return res.status(404).json({ message: "找不到使用者" });
     const user_internal_id = users[0].id;
 
     await useGCPMysql(`DELETE FROM user_regions WHERE user_id = ?`, [user_internal_id]);
@@ -322,8 +349,37 @@ router.put('/role_citys/:empid', isAuth, async (req, res, next) => {
         await useGCPMysql(`INSERT INTO user_regions (user_id, region_id) VALUES (?, ?)`, [user_internal_id, item.city_id]);
       }
     }
-    res.status(200).json({ message: true });
+    
+    res.status(200).json({ message: "地區權限更新成功，已同步更新稽核紀錄" });
+  } catch (error) { 
+    console.error("更新地區權限失敗:", error);
+    next(error); 
+  }
+});
+
+// 17. GET /usercity_all - 🌟 新增：取得所有使用者的地區權限清單
+router.get('/usercity_all', isAuth, async (req, res, next) => {
+  try {
+    const query = `
+      SELECT u.emp_id as users_id, ur.region_id as city_id
+      FROM user_regions ur
+      JOIN users u ON ur.user_id = u.id
+    `;
+    const rows = await useGCPMysql(query);
+    res.status(200).json({ message: true, data: rows });
   } catch (error) { next(error); }
+});
+
+// 18. GET /report_groups - 取得報表群組 (供統整表系統別下拉選單使用)
+router.get('/report_groups', isAuth, async (req, res, next) => {
+  try {
+    const query = `SELECT id, name, status FROM report_groups ORDER BY id`;
+    const rows = await useGCPMysql(query);
+    res.status(200).json({ message: true, data: rows });
+  } catch (error) { 
+    console.error("GET /report_groups 失敗:", error);
+    next(error); 
+  }
 });
 
 
