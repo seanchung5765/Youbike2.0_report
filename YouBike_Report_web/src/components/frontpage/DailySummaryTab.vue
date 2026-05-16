@@ -163,8 +163,8 @@ const getonedaydata = async () => {
         queryPole2.value.push(`${cleanBaseCode}2`);
 
         CITY_MAP.value[cleanBaseCode] = cityName;
-        CITY_MAP[`${cleanBaseCode}2`] = cityName;
-        CITY_MAP[`${cleanBaseCode}2E`] = cityName;
+        CITY_MAP.value[`${cleanBaseCode}2`] = cityName;
+        CITY_MAP.value[`${cleanBaseCode}2E`] = cityName;
       }
     });
 
