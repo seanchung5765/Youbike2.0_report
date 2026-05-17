@@ -207,21 +207,23 @@ router.get('/pages', isAuth, async (req, res, next) => {
 router.put('/role/:roleid', isAuth, async (req, res, next) => {
   try {
     const role_id = req.params.roleid;
-    const payload = req.body; // [{page_id: 102}, ...]
     
-    // 🌟 1. 取得當前操作者的工號 (從 JWT 解析出來的)
+    // 🚀 修正 1：利用解構賦值，精準抓出前端傳來的 name (角色名稱) 與 payload (權限陣列)
+    const { name, payload } = req.body; 
+    
+    // 🌟 1. 取得當前操作者工號 (從 JWT 解析出來的)
     const operatorId = (req.user && req.user.userId) ? req.user.userId : 'System';
 
-    // 🌟 2. 更新 roles 表的修改時間與修改人
-    // 使用 MySQL 內建的 NOW() 取得當下時間
+    // 🚀 修正 2：在 SQL 語法中補上 "name = ?"，這樣角色名稱才會真正被更新儲存！
     await useGCPMysql(
-      `UPDATE roles SET updated_at = NOW(), updated_by = ? WHERE id = ?`,
-      [operatorId, role_id]
+      `UPDATE roles SET name = ?, updated_at = NOW(), updated_by = ? WHERE id = ?`,
+      [name, operatorId, role_id]
     );
 
-    // 3. 處理權限關聯表 (原本的先刪後增邏輯)
+    // 3. 處理權限關聯表 (先刪後增邏輯)
     await useGCPMysql(`DELETE FROM role_menu_permissions WHERE role_id = ?`, [role_id]);
     
+    // 🚀 修正 3：此時解構出來的 payload 已經是真正的陣列了，.length 就能完美發揮威力
     if (payload && payload.length > 0) {
       const values = payload.map(item => [role_id, item.page_id]);
       for (let val of values) {
