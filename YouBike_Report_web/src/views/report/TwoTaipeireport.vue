@@ -124,11 +124,29 @@ watch(city, () => { selectstationvalue.value = []; });
 const clearDate = () => { starttimestamp.value = null; endtimestamp.value = null; };
 
 // --- 日期防呆 ---
+// --- 日期防呆 ---
 const MIN_DATE = new Date(2023, 0, 1).getTime();
 const getTodayStart = () => new Date().setHours(0, 0, 0, 0);
 
-const disableStartDate = (ts) => ts < MIN_DATE || ts >= getTodayStart() || (endtimestamp.value && (ts > new Date(endtimestamp.value).getTime() || ts < new Date(endtimestamp.value).getTime() - 30 * 86400000));
-const disableEndDate = (ts) => ts < MIN_DATE || ts >= getTodayStart() || (starttimestamp.value && (ts < new Date(starttimestamp.value).getTime() || ts > new Date(starttimestamp.value).getTime() + 30 * 86400000));
+const disableStartDate = (ts) => {
+  if (ts < MIN_DATE || ts >= getTodayStart()) return true;
+  if (endtimestamp.value) {
+    // 🚀 將 YYYY-MM-DD 轉成 YYYY/MM/DD，強制 JS 使用本地時間 0 點
+    const endDateTs = new Date(endtimestamp.value.replace(/-/g, '/')).getTime();
+    return ts > endDateTs || ts < endDateTs - 30 * 86400000;
+  }
+  return false;
+};
+
+const disableEndDate = (ts) => {
+  if (ts < MIN_DATE || ts >= getTodayStart()) return true;
+  if (starttimestamp.value) {
+    // 🚀 將 YYYY-MM-DD 轉成 YYYY/MM/DD，強制 JS 使用本地時間 0 點
+    const startDateTs = new Date(starttimestamp.value.replace(/-/g, '/')).getTime();
+    return ts < startDateTs || ts > startDateTs + 30 * 86400000;
+  }
+  return false;
+};
 
 const formatGcpDate = (dateInput) => {
   if (!dateInput) return "";

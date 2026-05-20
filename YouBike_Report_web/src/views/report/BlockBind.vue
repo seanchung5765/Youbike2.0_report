@@ -174,33 +174,42 @@ const clearDate = () => {
 };
 
 // --- 日期防呆邏輯 ---
-const getMidnightTime = (dateStr) => {
-  if (!dateStr) return null;
-  return new Date(dateStr).setHours(0, 0, 0, 0);
-};
-
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
+// 🚀 安全的時間轉換：把 YYYY-MM-DD 轉成 YYYY/MM/DD，避免時區跳轉錯誤
+const getMidnightTime = (dateStr) => {
+  if (!dateStr) return null;
+  return new Date(dateStr.replace(/-/g, '/')).setHours(0, 0, 0, 0);
+};
+
 const disablestartDate = (ts) => {
-  const selectedTime = new Date(ts).setHours(0, 0, 0, 0);
   const todayTime = new Date().setHours(0, 0, 0, 0);
-  if (selectedTime >= todayTime) return true;
+  
+  // 🚨 修正 1：改為「大於 (>)」今天才禁用，這樣今天 (等於) 就能選了！
+  if (ts > todayTime) return true;
 
   const endTime = getMidnightTime(endDate.value);
-  if (endTime && (selectedTime > endTime || selectedTime < (endTime - THIRTY_DAYS_MS))) {
-    return true;
+  if (endTime) {
+    // 🚨 修正 2：開始日期不能「大於」結束日期 (允許等於，所以能選單日！)
+    if (ts > endTime || ts < (endTime - THIRTY_DAYS_MS)) {
+      return true;
+    }
   }
   return false;
 };
 
 const disableEndDate = (ts) => {
-  const selectedTime = new Date(ts).setHours(0, 0, 0, 0);
   const todayTime = new Date().setHours(0, 0, 0, 0);
-  if (selectedTime >= todayTime) return true;
+  
+  // 🚨 修正 1：結束日期同樣不允許選擇未來的日子
+  if (ts > todayTime) return true;
 
   const startTime = getMidnightTime(startDate.value);
-  if (startTime && (selectedTime < startTime || selectedTime > (startTime + THIRTY_DAYS_MS))) {
-    return true;
+  if (startTime) {
+    // 🚨 修正 2：結束日期不能「小於」開始日期 (允許等於，所以能選單日！)
+    if (ts < startTime || ts > (startTime + THIRTY_DAYS_MS)) {
+      return true;
+    }
   }
   return false;
 };

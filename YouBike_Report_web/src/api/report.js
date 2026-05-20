@@ -4,3 +4,8 @@ import apiClient from "./index";
 export const getGcpReport = (params) => {
   return apiClient.get("/report/gcpfun", { params });
 };
+
+// 1.0 交易查詢
+export const getV1Transaction = (data) => {
+  return apiClient.post('/report/v1/transaction', data);
+};

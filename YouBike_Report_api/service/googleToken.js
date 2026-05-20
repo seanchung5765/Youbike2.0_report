@@ -8,22 +8,23 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-let exp = 0;
-let token = null;
+// 🚀 核心升級：改用「物件」來暫存不同網址 (Audience) 的專屬 Token
+const tokenCache = {};
 
-const idToken = async () => {
+// 把目標網址當成參數傳進來 (如果不傳，就預設吃原本環境變數裡的 GCP_URL)
+const idToken = async (targetAudience = process.env.GCP_URL) => {
   const currentTimestamp = Date.now();
   // 緩存機制：設定為 25 分鐘提早更新，避免剛好卡在 30 分鐘邊界失效
   const twentyFiveMinutesAgo = currentTimestamp - 25 * 60 * 1000;
 
-  if (token && exp > twentyFiveMinutesAgo) {
-    return token;
+  // 檢查這個專屬網址是否有有效緩存
+  if (tokenCache[targetAudience] && tokenCache[targetAudience].exp > twentyFiveMinutesAgo) {
+    return tokenCache[targetAudience].token;
   }
 
   try {
-    const targetAudience = process.env.GCP_URL;
     if (!targetAudience) {
-      throw new Error("請先在 .env 或雲端環境變數中設定 GCP_URL");
+      throw new Error("請先提供目標 URL (Audience)");
     }
 
     // 鎖定本地開發用的實體 JSON 檔案路徑
@@ -32,25 +33,27 @@ const idToken = async () => {
 
     // 環境自動判斷核心
     if (fs.existsSync(keyPath)) {
-      // 情況 A：在本地電腦開發，找得到實體檔案，強制使用該檔案登入
       authOptions = { keyFilename: keyPath };
     } 
-    // 情況 B：在 Cloud Run 上，找不到實體檔案 (authOptions 為空)
-    // Google 套件會自動啟動 Application Default Credentials (ADC) 機制，向雲端底層索取安全身分
 
     // 初始化 GoogleAuth，自動處理複雜的 JWT 簽發與 Token 交換
     const auth = new GoogleAuth(authOptions);
-    const client = await auth.getIdTokenClient(targetAudience);
+    const client = await auth.getIdTokenClient(targetAudience); // 🚀 依照不同網址去要對應的鑰匙
     const headers = await client.getRequestHeaders();
 
     // 取出 Bearer 後面的 Token 字串
-    token = headers.Authorization.split(" ")[1];
-    exp = currentTimestamp;
+    const token = headers.Authorization.split(" ")[1];
+    
+    // 🚀 將生好的鑰匙跟時間，存進對應網址的緩存裡
+    tokenCache[targetAudience] = {
+      token: token,
+      exp: currentTimestamp
+    };
     
     await delay(500);
     return token;
   } catch (error) {
-    console.error("取得 Token 失敗:", error.message);
+    console.error(`取得 ${targetAudience} 的 Token 失敗:`, error.message);
     return null;
   }
 };

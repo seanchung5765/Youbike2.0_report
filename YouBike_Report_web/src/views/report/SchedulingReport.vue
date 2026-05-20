@@ -151,20 +151,35 @@ onMounted(() => {
 const getTodayStart = () => new Date().setHours(0, 0, 0, 0);
 const MIN_DATE = new Date(2023, 0, 1).getTime();
 
+// 🚀 安全的時間轉換函式：強制轉為 YYYY/MM/DD，避免 UTC 陷阱
+const getMidnightTime = (dateStr) => {
+  if (!dateStr) return null;
+  return new Date(dateStr.replace(/-/g, '/')).setHours(0, 0, 0, 0);
+};
+
 const disableStartDate = (ts) => {
+  // 🚨 關鍵修改：加上 "=" (ts >= getTodayStart())
+  // 這樣「今天」跟「未來」都會被 Disable，最多只能選到「昨天」！
   if (ts < MIN_DATE || ts >= getTodayStart()) return true;
-  if (endtimestamp.value) {
-    const end = new Date(endtimestamp.value).getTime();
-    return ts > end || ts < end - 30 * 86400000;
+  
+  const endTs = getMidnightTime(endtimestamp.value);
+  if (endTs) {
+    if (ts > endTs || ts < endTs - 30 * 86400000) {
+      return true;
+    }
   }
   return false;
 };
 
 const disableEndDate = (ts) => {
+  // 🚨 關鍵修改：加上 "=" (ts >= getTodayStart())
   if (ts < MIN_DATE || ts >= getTodayStart()) return true;
-  if (starttimestamp.value) {
-    const start = new Date(starttimestamp.value).getTime();
-    return ts < start || ts > start + 30 * 86400000;
+  
+  const startTs = getMidnightTime(starttimestamp.value);
+  if (startTs) {
+    if (ts < startTs || ts > startTs + 30 * 86400000) {
+      return true;
+    }
   }
   return false;
 };

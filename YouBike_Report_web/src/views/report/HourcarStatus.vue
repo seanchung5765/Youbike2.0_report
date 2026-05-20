@@ -10,127 +10,116 @@
     </div>
 
     <form
-      class="row mx-0"
+      class="mx-0 py-3 px-3"
       :class="{ 'report-header': !ischange, 'report-header-dark': ischange }"
+      style="display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; overflow-x: auto; white-space: nowrap;"
     >
-      <div class="row align-items-center col-md-auto col-12 pe-0">
-        <label class="col-md-auto col-form-label fw-bolder pe-0">城市:</label>
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+        <label class="fw-bolder mb-0">城市:</label>
+        <div style="width: 140px;">
+          <n-select
+            v-model:value="cityvalue"
+            placeholder="請選擇"
+            multiple
+            :options="options"
+            :max-tag-count="1"
+            size="medium"
+          />
+        </div>
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-2 col-12">
-        <n-select
-          class="px-0"
-          v-model:value="cityvalue"
-          placeholder="請選擇"
-          multiple
-          :options="options"
-          :max-tag-count="1"
-          size="medium"
-        />
+
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; border-left: 2px solid #ccc; padding-left: 12px;">
+        <label class="fw-bolder mb-0">時段:</label>
+        <n-checkbox v-model:checked="isAllHours" size="large">全選</n-checkbox>
+        <div style="width: 160px;">
+          <n-select
+            v-model:value="hoursValue"
+            placeholder="請選擇"
+            multiple
+            :options="gethours()"
+            :max-tag-count="1"
+            size="medium"
+            :disabled="isAllHours" 
+          />
+        </div>
       </div>
-      <div class="row align-items-center col-md-auto col-12 pe-0">
-        <label class="col-md-auto col-form-label fw-bolder pe-0">時段:</label>
-      </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-2 col-12">
-        <n-select
-          class="px-0"
-          v-model:value="hoursValue"
-          placeholder="請選擇"
-          multiple
-          :options="gethours()"
-          :max-tag-count="1"
-          size="medium"
-        />
-      </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <div
-          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
-        >
+
+      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; border-left: 2px solid #ccc; padding-left: 12px;">
+        <div style="width: 140px;">
           <n-date-picker
-            class="px-0"
             v-model:formatted-value="starttimestamp"
             type="date"
             :actions="null"
             :input-readonly="true"
             :update-value-on-close="true"
-            default-time="2023-06-20"
             placeholder="開始日期"
             value-format="yyyy-MM-dd"
             :is-date-disabled="disablestartDate"
           />
         </div>
-        <div
-          class="row px-0 ps-md-4 mx-0 mx-md-2 align-items-center col-md-auto mt-3 mt-md-0"
-        >
+        <span class="fw-bold">至</span>
+        <div style="width: 140px;">
           <n-date-picker
-            class="px-0"
             v-model:formatted-value="endtimestamp"
             type="date"
             :actions="null"
             :input-readonly="true"
-            :is-date-disabled="disableEndDate"
             :update-value-on-close="true"
             placeholder="結束日期"
             value-format="yyyy-MM-dd"
+            :is-date-disabled="disableEndDate"
           />
         </div>
       </div>
-      <div class="row mx-0 mx-md-2 align-items-center col-md-auto col-12">
-        <button
-          type="button"
-          class="btn btn-info text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          @click="cleardate"
-        >
-          清空日期
-        </button>
-        <button
-          type="button"
-          class="btn btn-success text-light mt-3 mt-md-0 col-md-auto mx-md-2"
-          @click="search"
-        >
-          搜尋
-        </button>
 
+      <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
+        <button type="button" class="btn btn-info text-light" @click="cleardate">清空日期</button>
+        <button type="button" class="btn btn-success text-light" @click="search">搜尋</button>
         <output-excel
-          class="btn btn-primary text-light mt-3 mt-md-0 col-md-auto mx-md-2"
+          class="btn btn-primary text-light"
           :data="exceldata"
           :name="excelename"
           :header="excelecolumn"
         />
       </div>
     </form>
-    <n-data-table
-      v-show="totaldata.length > 0"
-      ref="dataTable"
-      size="small"
-      :columns="columns"
-      :data="totaldata"
-      :pagination="{ pageSize: 13 }"
-      :max-height="600"
-      :scroll-x="1000"
-      :bordered="false"
-      :single-line="false"
-      striped
-      :row-class-name="rowClassName" 
-    />
+    
+    <div style="height: calc(100vh - 180px); padding-bottom: 20px; margin-top: 10px;">
+      <n-data-table
+        v-show="totaldata.length > 0"
+        ref="dataTable"
+        size="small"
+        :columns="columns"
+        :data="totaldata"
+        :max-height="600"
+        :scroll-x="1200"
+        :bordered="false"
+        :single-line="false"
+        striped
+        flex-height
+        style="height: 100%;"
+        :row-class-name="rowClassName" 
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, inject, onMounted } from "vue";
+// 🚀 記得補上 watch 的引入
+import { ref, inject, onMounted, watch } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import OutputExcel from "../../components/OutputExcel.vue";
-import { NDataTable, NDatePicker, NSelect } from "naive-ui";
+// 🚀 記得補上 NCheckbox 的引入
+import { NDataTable, NDatePicker, NSelect, NCheckbox } from "naive-ui";
 import { useUserStore } from "../../stores/userdata";
 
-// 1. 正規化：透過 src/api 呼叫，完全拔除 axios
 import { getAllCities } from "@/api/admin";
-import { getGcpReport } from "@/api/report"; // 請確認你的報告 API 是這支
+import { getGcpReport } from "@/api/report"; 
 
 const store = useUserStore();
 const canusecitys = store.citys || [];
 
-//亮亮模式暗暗模式切換
 const ischange = inject("ischange");
 const swal = inject("$swal");
 async function NotCityAlert(text) {
@@ -165,7 +154,6 @@ const makeExecl = (nowdata, nowcolumn, name) => {
 const cityvalue = ref([]);
 const options = ref([]);
 
-// 2. 動態載入縣市邏輯
 const loadCities = async () => {
   try {
     const res = await getAllCities();
@@ -180,7 +168,8 @@ const loadCities = async () => {
     options.value = dbCities.map(c => {
       let gcpVal = "";
       if (c.codes) {
-        gcpVal = c.codes.split(',')[0].trim();
+        let rawCode = c.codes.split(',')[0].trim();
+        gcpVal = rawCode.replace(/2E$/i, '').replace(/2$/i, ''); 
       } else {
         gcpVal = fallbackBqMap[c.city_id] || "";
       }
@@ -200,13 +189,24 @@ onMounted(() => {
   loadCities();
 });
 
-// 🌟 3. 一灰一白斑馬紋設定
 const rowClassName = (row, index) => {
   return index % 2 === 1 ? 'gray-row' : '';
 };
 
+// 🚀 時段全選邏輯
 const hoursValue = ref([]);
-//把counts 變成0~23
+const isAllHours = ref(false);
+
+watch(isAllHours, (newVal) => {
+  if (newVal) {
+    // 全選：自動塞入 0 到 23
+    hoursValue.value = Array.from({ length: 24 }, (_, i) => i);
+  } else {
+    // 取消全選：清空
+    hoursValue.value = [];
+  }
+});
+
 function gethours() {
   let arr = [];
   for (let index = 0; index < 24; index++) {
@@ -325,11 +325,14 @@ const columns = ref([
   { key: "item10", align: "center", title: "合約車輛數" },
   { key: "item11", align: "center", title: "境內車輛數占比" },
   { key: "item12", align: "center", title: "差異數" },
+  { key: "item13", align: "center", title: "可用率" },
 ]);
 
 function makeData(data) {
   totaldata.value = [];
   totaldata.value = data.map((item) => {
+    const calculatedRate = item.total ? ((item.in_station / item.total) * 100).toFixed(2) : "0.00";
+
     return {
       item1: formatDate(item.date),
       item2: item.hour,
@@ -343,6 +346,7 @@ function makeData(data) {
       item10: item.bike_number,
       item11: item.percentage,
       item12: item.different,
+      item13: `${calculatedRate}%`, 
     };
   });
 }
@@ -359,18 +363,15 @@ const getData = async () => {
   
   try {
     isLoading.value = true;
-    // 🌟 透過集中管理的 src/api 呼叫
     const res = await getGcpReport(params);
     isLoading.value = false;
     
-    // axios 封裝通常回傳結構會包在 data 裡面
     const resdata = res.data.data || []; 
 
     makeData(resdata);
 
-    if (dataTable.value) {
-      dataTable.value.page(1);
-    }
+    // 🚀 已經把報錯的 dataTable.value.page(1) 拿掉囉！
+    
     makeExecl(totaldata.value, columns.value, "每小時車輛狀態");
   } catch (error) {
     isLoading.value = false;
@@ -399,12 +400,10 @@ const search = () => {
 </script>
 
 <style scoped>
-/* 🚀 灰色行的背景顏色 */
 :deep(.gray-row td) {
   background-color: #e8e8e8 !important;
 }
 
-/* 確保滑鼠移過去時有回饋顏色 */
 :deep(.n-data-table .n-data-table-tr.gray-row:hover td) {
   background-color: #d1d1d1 !important;
 }

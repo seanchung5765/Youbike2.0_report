@@ -37,7 +37,7 @@
               <template #unchecked> 亮亮模式 </template>
             </n-switch>-->
             <div class="mt-2 fw-bold" style="font-size: 12px; color: #888; letter-spacing: 1px;">
-              v2.0.0
+              v2.1.0
             </div>
           </div>
 
@@ -60,7 +60,7 @@ import {
   NMenu, NDropdown, NConfigProvider, darkTheme, NSwitch,
 } from "naive-ui";
 // 引入所有你會用到的 Icon
-import { Home, ChatboxEllipsesSharp } from "@vicons/ionicons5";
+import { Home, ChatboxEllipsesSharp, Headset } from "@vicons/ionicons5";
 import { Book, User, Gift, MailBulk } from "@vicons/fa";
 import { Icon } from "@vicons/utils";
 import { Report } from "@vicons/carbon";
@@ -93,7 +93,8 @@ const iconMap = {
   'Gift': Gift,
   'MailBulk': MailBulk,
   'ChatboxEllipsesSharp': ChatboxEllipsesSharp,
-  'Book': Book
+  'Book': Book,
+  'Headset': Headset 
 };
 
 function renderIcon(icon) {
@@ -104,14 +105,28 @@ function renderIcon(icon) {
 // 遞迴函式
 const buildNaiveMenu = (menuData) => {
   return menuData.map(item => {
-    // 基本架構
+    // 判斷是否為「主目錄」：
+    const isParent = item.children && item.children.length > 0;
+
+    // 🚀 決定圖示的邏輯
+    let itemIcon = undefined;
+    if (isParent) {
+      if (item.icon_code && iconMap[item.icon_code]) {
+        // 1. 如果資料庫有填寫 icon_code，優先使用資料庫的
+        itemIcon = renderIcon(iconMap[item.icon_code]);
+      } else if (item.name === '客服專區') {
+        // 2. 🚀 防呆機制：如果名字叫「客服專區」但資料庫沒填，強制套用 Headset！
+        itemIcon = renderIcon(Headset);
+      }
+    }
+
     const currentItem = {
       key: String(item.id),
-      icon: item.icon_code ? renderIcon(iconMap[item.icon_code]) : undefined,
+      icon: itemIcon,
+      label: item.name
     };
 
-    if (item.children && item.children.length > 0) {
-      currentItem.label = item.name;
+    if (isParent) {
       currentItem.children = buildNaiveMenu(item.children);
     } else {
       currentItem.label = () =>

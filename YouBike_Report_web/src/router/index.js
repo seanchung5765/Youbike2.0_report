@@ -279,6 +279,31 @@ const routes = [
     ],
   },
   {
+    path: "/cs-all",
+    name: "CustomerService",
+    redirect: "/cs-all/transaction-v1",
+    children: [
+      {
+        path: "transaction-v1",
+        name: "TransactionV1",
+        component: () => import("../views/customer-service/TransactionV1.vue"), // 請確保你的 Vue 檔名對應一致
+        meta: { title: "1.0交易查詢", id: 131, isValidation: true, islogin: true },
+      },
+      /*{
+        path: "member-v1",
+        name: "MemberV1",
+        component: () => import("../views/customer-service/MemberV1.vue"),
+        meta: { title: "1.0會員查詢", id: 132, isValidation: true, islogin: true },
+      },
+      {
+        path: "card-v1",
+        name: "CardV1",
+        component: () => import("../views/customer-service/CardV1.vue"),
+        meta: { title: "1.0卡片查詢", id: 133, isValidation: true, islogin: true },
+      },*/
+    ]
+  },
+  {
     path: "/admin",
     name: "Admin",
     redirect: "/admin/users",
@@ -382,4 +407,3 @@ if (to.meta.id) {
 });
 
 export default router;
-
