@@ -72,7 +72,7 @@
       :row-class-name="rowClassName"
       :columns="columns"
       :data="dataTable"
-      :max-height="600"
+      :max-height="700"
       :scroll-x="1200"
       :bordered="false"
       :single-line="false"

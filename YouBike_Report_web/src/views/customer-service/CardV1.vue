@@ -1,8 +1,9 @@
 <template>
   <div class="container-fluid px-0">
     <loading v-model:active="isLoading" :can-cancel="false" :is-full-page="true" />
+    
     <div class="row mx-0">
-      <h1 class="report-h1 fw-bold">1.0 交易查詢</h1>
+      <h1 class="report-h1 fw-bold">1.0 卡片查詢</h1>
     </div>
 
     <form
@@ -25,25 +26,13 @@
       </div>
 
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; border-left: 2px solid #ccc; padding-left: 12px;">
-        <label class="fw-bolder mb-0" style="white-space: nowrap;">卡號:</label>
-        <div style="width: 150px;">
+        <label class="fw-bolder mb-0" style="white-space: nowrap;">外觀卡號:</label>
+        <div style="width: 160px;">
           <n-input 
             v-model:value="cardValue" 
             placeholder="選填..." 
             clearable 
             @keyup.enter="search" 
-          />
-        </div>
-      </div>
-
-      <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; border-left: 2px solid #ccc; padding-left: 12px;">
-        <label class="fw-bolder mb-0" style="white-space: nowrap;">扣款場站:</label>
-        <div style="width: 150px;">
-          <n-select 
-            v-model:value="stationValue" 
-            :options="stationOptions" 
-            placeholder="選填..." 
-            clearable 
           />
         </div>
       </div>
@@ -69,9 +58,9 @@
           :data="datatable"
           :columns="columns"
           :max-height="600"
+          :scroll-x="1500" 
           :bordered="false"
           :single-line="false"
-          striped
           flex-height
           style="height: 100%;"
           :class="{ 'dark-mode-table': ischange }"
@@ -85,49 +74,38 @@
 import { ref, inject } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
-// 🚀 關鍵修正 1：把 NSelect 加回 import 中
-import { NDataTable, NInput, NSelect } from "naive-ui"; 
+import { NDataTable, NInput } from "naive-ui"; 
 import OutputExcel from "../../components/OutputExcel.vue";
-import { getV1Transaction } from "@/api/report"; 
+import { getV1Cards } from "../../api/report"; 
 
 const ischange = inject("ischange");
 const swal = inject("$swal");
 
 const isLoading = ref(false);
-
 const phoneValue = ref(""); 
-const cardValue = ref(""); 
-const stationValue = ref(null); // 🚀 下拉選單預設給 null
-
-// 🚀 關鍵修正 2：定義扣款場站的下拉選單選項
-const stationOptions = [
-  { label: "9970", value: "9970" }
-];
-
+const cardValue = ref("");
 const datatable = ref([]);
 
 const exceldata = ref([]);
-const excelename = ref("1.0交易查詢");
+const excelename = ref("1.0卡片查詢");
 const excelecolumn = ref([]);
 
+// 🚀 調整欄位寬度：放大「使用者帳號」與「晶片號碼」
 const columns = ref([
-  { key: "item2", align: "center", title: "借車時間", width: 165 }, 
-  { key: "item5", align: "center", title: "借車場站", minWidth: 190 }, 
-  { key: "item1", align: "center", title: "還車時間", width: 165 },
-  { key: "item4", align: "center", title: "還車場站", minWidth: 180 },
-  { key: "item9", align: "center", title: "外觀卡號", width: 150 },
-  { key: "item7", align: "center", title: "自行車號", width: 160 },
-  { key: "item17", align: "center", title: "扣款時間", width: 165 },
-  { key: "item18", align: "center", title: "扣款場站", width: 80 },
-  { key: "item12", align: "center", title: "交易金額", width: 80 },
-  { key: "item13", align: "center", title: "租借時間(分)", width: 90 },
-  { key: "item15", align: "center", title: "手機號碼", width: 110 }
+  { key: "item1", align: "center", title: "行動電話", width: 110 }, 
+  { key: "item2", align: "center", title: "使用者帳號", minWidth: 200 }, // 👈 加寬防擠壓
+  { key: "item3", align: "center", title: "外觀卡號", width: 160 },
+  { key: "item4", align: "center", title: "晶片號碼", minWidth: 220 }, // 👈 加寬防擠壓
+  { key: "item5", align: "center", title: "註冊時間", width: 160 },
+  { key: "item6", align: "center", title: "停用時間", width: 160 },
+  { key: "item7", align: "center", title: "加保時間", width: 160 },
+  { key: "item8", align: "center", title: "退保時間", width: 160 },
+  { key: "item9", align: "center", title: "註記", minWidth: 100 }
 ]);
 
 const clearForm = () => {
   phoneValue.value = "";
   cardValue.value = "";
-  stationValue.value = null;
   datatable.value = [];
 };
 
@@ -137,47 +115,35 @@ const rowClassName = (row, index) => {
 
 // --- API 請求 ---
 const search = async () => {
-  // 防呆邏輯 1：手機號碼必填
-  if (!phoneValue.value.trim()) {
+  const searchPhone = (phoneValue.value || "").trim();
+  const searchCard = (cardValue.value || "").trim();
+
+  if (!searchPhone) {
     return swal({ icon: "error", title: "手機號碼為必填項目", showConfirmButton: false, timer: 1500 });
   }
-
-  // 🚀 關鍵修正 3：因為下拉選單沒選時是 null，直接拿 value 判斷，避免呼叫 .trim() 報錯
-  const currentStation = stationValue.value || "";
 
   try {
     isLoading.value = true;
     
-    const params = {
-      mem_id: phoneValue.value.trim(),
-      card_no: cardValue.value.trim(),
-      paystatno: currentStation
-    };
-
-    const res = await getV1Transaction(params);
+    const res = await getV1Cards({ 
+      mem_id: searchPhone,
+      card_no: searchCard
+    });
+    
     const resData = res.data?.data || []; 
 
-    let mappedData = resData.map((item, index) => ({
-      item1: (item['還車時間'] || '').replace('+00', ''),
-      item2: (item['借車時間'] || '').replace('+00', ''),
-      item4: item['還車場站'] || '',
-      item5: item['借車場站'] || '',
-      item7: item['自行車號'] || '',
-      item8: item['票卡種類'] || '',
-      item9: item['外觀卡號'] || '',
-      item11: item['費率'] || '',
-      item12: (item['交易金額'] === '' || item['交易金額'] == null) ? '0' : item['交易金額'],
-      item13: item['租用(分)'] || '',
-      item15: item['手機號碼'] || '',
-      item17: (item['扣款時間'] || '').replace('+00', ''),
-      item18: item['扣款場站'] || ''
+    // 🚀 清除 +00：四個時間欄位都加上 .replace('+00', '')
+    let mappedData = resData.map((item) => ({
+      item1: item['行動電話'] || '',
+      item2: item['使用者帳號'] || '',
+      item3: item['外觀卡號'] || '',
+      item4: item['晶片號碼'] || '',
+      item5: (item['註冊時間'] || '').replace('+00', ''),
+      item6: (item['停用時間'] || '').replace('+00', ''),
+      item7: (item['加保時間'] || '').replace('+00', ''),
+      item8: (item['退保時間'] || '').replace('+00', ''),
+      item9: item['註記'] || ''
     }));
-
-    mappedData.sort((a, b) => {
-      if (a.item2 > b.item2) return -1; 
-      if (a.item2 < b.item2) return 1;  
-      return 0;
-    });
 
     datatable.value = mappedData;
 
@@ -185,12 +151,12 @@ const search = async () => {
     excelecolumn.value = columns.value.map(c => c.title);
 
     if (datatable.value.length === 0) {
-       swal({ icon: "warning", title: "查無此交易紀錄", showConfirmButton: false, timer: 1500 });
+       swal({ icon: "warning", title: "查無此卡片紀錄", showConfirmButton: false, timer: 1500 });
     }
 
   } catch (error) {
-    console.error("API 查詢失敗:", error);
-    swal({ icon: "error", title: "查詢失敗，請確認連線或參數", showConfirmButton: false, timer: 1500 });
+    console.error("卡片 API 查詢失敗:", error);
+    swal({ icon: "error", title: "查詢失敗，請確認連線或權限", showConfirmButton: false, timer: 1500 });
   } finally {
     isLoading.value = false;
   }
@@ -203,16 +169,18 @@ const search = async () => {
   word-break: break-word;         
 }
 
+/* 一灰一白的 CSS 設定 */
 :deep(.row-even td) {
-  background-color: #ffffff !important;
+  background-color: #ffffff !important; /* 白色 */
 }
 :deep(.row-odd td) {
-  background-color: #e8e8e8 !important; 
+  background-color: #e8e8e8 !important; /* 淺灰色 */
 }
 :deep(.n-data-table-tr:hover td) {
-  background-color: #e6f7ff !important; 
+  background-color: #e6f7ff !important; /* 滑鼠懸停時的淺藍色 */
 }
 
+/* 深色模式適配 */
 :deep(.dark-mode-table .row-even td) {
   background-color: #18181c !important; 
 }

@@ -37,7 +37,7 @@
               <template #unchecked> 亮亮模式 </template>
             </n-switch>-->
             <div class="mt-2 fw-bold" style="font-size: 12px; color: #888; letter-spacing: 1px;">
-              v2.1.0
+              v2.2.0
             </div>
           </div>
 

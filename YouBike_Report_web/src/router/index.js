@@ -289,7 +289,7 @@ const routes = [
         component: () => import("../views/customer-service/TransactionV1.vue"), // 請確保你的 Vue 檔名對應一致
         meta: { title: "1.0交易查詢", id: 131, isValidation: true, islogin: true },
       },
-      /*{
+      {
         path: "member-v1",
         name: "MemberV1",
         component: () => import("../views/customer-service/MemberV1.vue"),
@@ -300,7 +300,7 @@ const routes = [
         name: "CardV1",
         component: () => import("../views/customer-service/CardV1.vue"),
         meta: { title: "1.0卡片查詢", id: 133, isValidation: true, islogin: true },
-      },*/
+      },
     ]
   },
   {

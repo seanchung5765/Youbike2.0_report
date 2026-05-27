@@ -331,7 +331,6 @@ const columns = ref([
 function makeData(data) {
   totaldata.value = [];
   totaldata.value = data.map((item) => {
-    const calculatedRate = item.total ? ((item.in_station / item.total) * 100).toFixed(2) : "0.00";
 
     return {
       item1: formatDate(item.date),
@@ -346,7 +345,7 @@ function makeData(data) {
       item10: item.bike_number,
       item11: item.percentage,
       item12: item.different,
-      item13: `${calculatedRate}%`, 
+      item13: item.bike_used_percent, 
     };
   });
 }
