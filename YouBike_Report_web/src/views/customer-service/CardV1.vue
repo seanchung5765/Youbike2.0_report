@@ -100,7 +100,8 @@ const columns = ref([
   { key: "item6", align: "center", title: "停用時間", width: 160 },
   { key: "item7", align: "center", title: "加保時間", width: 160 },
   { key: "item8", align: "center", title: "退保時間", width: 160 },
-  { key: "item9", align: "center", title: "註記", minWidth: 100 }
+  { key: "item9", align: "center", title: "註記", minWidth: 100 },
+  { key: "item10", align: "center", title: "卡片狀態", minWidth: 100 }
 ]);
 
 const clearForm = () => {
@@ -142,7 +143,8 @@ const search = async () => {
       item6: (item['停用時間'] || '').replace('+00', ''),
       item7: (item['加保時間'] || '').replace('+00', ''),
       item8: (item['退保時間'] || '').replace('+00', ''),
-      item9: item['註記'] || ''
+      item9: item['註記'] || '',
+      item10: item['卡片狀態'] || '',
     }));
 
     datatable.value = mappedData;
