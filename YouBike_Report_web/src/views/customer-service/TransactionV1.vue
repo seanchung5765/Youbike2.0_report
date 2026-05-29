@@ -68,7 +68,7 @@
           ref="dataTableRef"
           :data="datatable"
           :columns="columns"
-          :max-height="600"
+          :max-height="2000"
           :bordered="false"
           :single-line="false"
           striped
@@ -132,6 +132,9 @@ const clearForm = () => {
 };
 
 const rowClassName = (row, index) => {
+  if (row.isLatest) {
+    return 'row-highlight'; 
+  }
   return index % 2 === 0 ? 'row-even' : 'row-odd';
 };
 
@@ -179,6 +182,21 @@ const search = async () => {
       return 0;
     });
 
+    const seenCards = new Set();
+    mappedData.forEach(row => {
+      // 確保有卡號才做紀錄，避免空卡號互相干擾
+      if (row.item9 && row.item9.trim() !== "") {
+        if (!seenCards.has(row.item9)) {
+          row.isLatest = true;       // 第一次遇到這個卡號，標記為最新
+          seenCards.add(row.item9);  // 把這張卡號記進黑名單，之後遇到的都不算最新
+        } else {
+          row.isLatest = false;
+        }
+      } else {
+        row.isLatest = false;
+      }
+    });
+
     datatable.value = mappedData;
 
     exceldata.value = [...datatable.value];
@@ -206,8 +224,9 @@ const search = async () => {
 :deep(.row-even td) {
   background-color: #ffffff !important;
 }
-:deep(.row-odd td) {
-  background-color: #e8e8e8 !important; 
+
+:deep(.row-highlight td) {
+  background-color: #ffd650fb !important; /* 你可以改成你喜歡的黃色，例如 #ffffb3 */
 }
 :deep(.n-data-table-tr:hover td) {
   background-color: #e6f7ff !important; 
