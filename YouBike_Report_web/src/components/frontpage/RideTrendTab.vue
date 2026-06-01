@@ -25,7 +25,6 @@
 
 <script setup>
 import { ref, onMounted } from "vue";
-// 🌟 統一使用我們封裝好的 API 模組
 import { getCityList } from "@/api/station"; 
 import { getGcpReport } from "@/api/report"; 
 import CityBarcharComponent from "../CityBarcharComponent.vue";
@@ -34,7 +33,6 @@ import { useUserStore } from "../../stores/userdata";
 const store = useUserStore();
 const canusecitys = store.citys || [];
 
-// 🌟 動態產生的對照表與基礎縣市清單 (完全消滅手寫)
 const cityMap = {}; 
 const baseCities = ref([]);
 
@@ -44,10 +42,14 @@ const data3 = ref([]); const date3 = ref([]);
 const data4 = ref([]); const date4 = ref([]);
 
 // --- 幫助函式 ---
+// 🚀 關鍵修正 1：月份跟日期強制補零，避免字串排序時 '10' 排在 '3' 前面
 function getLastMonDateFormatted(week = 1, day = 1) {
   const date = new Date();
   date.setDate(date.getDate() - week * 7 - date.getDay() + day);
-  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${d}`;
 }
 
 const getday = (whatday) => {
@@ -62,7 +64,6 @@ const getday = (whatday) => {
 const chineseCharacters = (text) => text.match(/[\u4e00-\u9fa5]+/g)?.[0] || text;
 const isWeekend = (item) => item[3] === "日" || item[3] === "六";
 
-// 產生空資料的模板函式 (改用動態的 baseCities)
 const initChartData = (weeks = 4) => baseCities.value.map(city => ({ city, value: new Array(weeks).fill(0) }));
 
 // --- API 與圖表處理邏輯 ---
@@ -70,48 +71,36 @@ const getonedaydata = async () => {
   let city1 = [], city2 = [], city3 = [], city4 = [];
 
   try {
-    // 🌟 1. 從後端撈取縣市清單
     const resCities = await getCityList();
     const allCitiesFromDB = resCities.data.data || [];
 
-    // 🌟 2. 根據權限動態組裝參數與中英對照表
     allCitiesFromDB.forEach(cityData => {
-      // 如果沒權限，或是資料庫沒設英文代碼，直接跳過
       if (!canusecitys.includes(cityData.id) || !cityData.codes) return;
 
-      // 紀錄有權限的中文縣市，確保長條圖能依序畫出
       baseCities.value.push(cityData.name); 
 
-      // 拆解代碼 (例如: "Newtaipei,Newtaipei2")
       const codesArr = cityData.codes.split(",");
       codesArr.forEach(code => {
         code = code.trim();
-        cityMap[code] = cityData.name; // 動態建立 1.0/2.0 的對照表
+        cityMap[code] = cityData.name; 
 
         if (code.endsWith("2")) {
-          // 👉 這是 2.0 的代碼 (例: Taipei2)
           city3.push(code); 
-          
           const code2E = `${code}E`;
-          city4.push(code2E); // 自動產生 2.0E 代碼 (例: Taipei2E)
-          cityMap[code2E] = cityData.name; // 將 2.0E 加入對照表
-
+          city4.push(code2E); 
+          cityMap[code2E] = cityData.name; 
           city1.push(`${cityData.name}2.0`, `${cityData.name}2.0E`);
         } else {
-          // 👉 這是 1.0 的代碼 (例: Newtaipei)
           city2.push(code); 
           city1.push(cityData.name); 
         }
       });
     });
 
-    // 防呆：如果完全沒權限，就不要去打 GCP 了
     if (baseCities.value.length === 0) return;
 
-    // 去除 city1 的重複項目 (保險起見)
     city1 = [...new Set(city1)];
 
-    // 🌟 3. 打 API 取報表
     const res = await Promise.all([
       getGcpReport({ dataset_id: "founder_report", table_id: "daily_summary_Taiwan", begin_date: getday(7), end_date: getday(1), city: city1 }),
       getGcpReport({ dataset_id: "report", table_id: `weekly_report_query1`, date: getLastMonDateFormatted(), city: city2 }),
@@ -147,8 +136,9 @@ const setBarimg1 = (data) => {
     grouped[cName][item.date] = (grouped[cName][item.date] || 0) + item.rent_number;
   });
 
-  const sortedDates = Array.from(dateSet).sort();
-  // 改用 baseCities.value
+  // 🚀 關鍵修正 2：強制用時間戳記來算大小，避免一切字串排序造成的錯亂
+  const sortedDates = Array.from(dateSet).sort((a, b) => new Date(a) - new Date(b));
+  
   data1.value = baseCities.value.map(city => {
     if (!grouped[city]) return null;
     const values = sortedDates.map(date => grouped[city][date] || 0);
@@ -200,7 +190,6 @@ const setBarimg2 = (...datasets) => {
 // 處理平日 / 假日共用邏輯
 const processDailyData = (datasets, isWeekendMode) => {
   let tempMap = {};
-  // 改用 baseCities.value
   baseCities.value.forEach(c => (tempMap[c] = []));
 
   datasets.forEach(data => {

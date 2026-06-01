@@ -67,7 +67,7 @@
 
         <div class="d-flex justify-content-end mt-4">
           <div class="fw-bold" style="font-size: 12px; color: #888; letter-spacing: 1px;">
-            v2.2.1
+            v2.2.2
           </div>
         </div>
 
