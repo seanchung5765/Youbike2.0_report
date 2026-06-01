@@ -2,7 +2,7 @@
   <div class="container-fluid px-0">
     <loading v-model:active="isLoading" :can-cancel="false" :is-full-page="true" />
     <div class="row mx-0">
-      <h1 class="report-h1 fw-bold">1.0 交易查詢</h1>
+      <h1 class="report-h1 fw-bold">會員交易查詢1.0</h1>
     </div>
 
     <form

@@ -3,7 +3,7 @@
     <loading v-model:active="isLoading" :can-cancel="false" :is-full-page="true" />
     
     <div class="row mx-0">
-      <h1 class="report-h1 fw-bold">1.0 會員查詢</h1>
+      <h1 class="report-h1 fw-bold">會員資料維護1.0</h1>
     </div>
 
     <form
