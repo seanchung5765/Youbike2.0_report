@@ -131,11 +131,10 @@ router.post('/v1/cards', isAuth, async (req, res, next) => {
     const final_mem_id = (mem_id || "").trim();
     const final_card_no = (card_no || "").trim();
 
-    if (!final_mem_id) {
-      return res.status(400).json({ success: false, message: "缺少手機號碼參數" });
+    if (!final_mem_id && !final_card_no) {
+      return res.status(400).json({ success: false, message: "請至少提供一項查詢參數" });
     }
 
-    // 💡 記得在你的環境變數 .env 檔加上：GCP_URL_CARDS = "https://yb1-cards-421613424541.asia-east1.run.app"
     const targetUrl = process.env.GCP_URL_CARDS || "https://yb1-cards-421613424541.asia-east1.run.app"; 
     const gcptoken = await idToken(targetUrl);
     
@@ -143,24 +142,20 @@ router.post('/v1/cards', isAuth, async (req, res, next) => {
       return res.status(500).json({ success: false, message: "無法取得 GCP 授權" });
     }
     
-    // 💡 安全防護：只傳 mem_id 給 Jack，防止他的 Python SQL 因為大小寫報錯 500
-    const response = await axios.post(targetUrl, { mem_id: final_mem_id }, {
+    // 🚀 關鍵修正：把 mem_id 和 card_no 同時送給 Jack！
+    // 讓他的 Python 直接在 BigQuery 用 WHERE CardNo = '...' 幫我們秒抓資料
+    const response = await axios.post(targetUrl, { 
+      mem_id: final_mem_id,
+      card_no: final_card_no 
+    }, {
       headers: { Authorization: `Bearer ${gcptoken}` },
     });
     
+    // 🚀 因為 BigQuery 已經精準撈出我們要的卡片了，這裡再也不需要用 js 跑 .filter 過濾迴圈了！
     let cardDataList = response.data || [];
-
-    // 🚀 如果前端有輸入卡號，我們直接在 Node.js 這邊做過濾篩選！
-    if (final_card_no !== "") {
-      // 註：這裡的比對 Key 先預設為常見的 '外觀卡號' 或 '卡號'
-      cardDataList = cardDataList.filter(item => 
-        item['外觀卡號'] === final_card_no || 
-        item['卡號'] === final_card_no ||
-        item['CardNo'] === final_card_no
-      );
-    }
     
     res.status(200).json({ success: true, data: cardDataList });
+
   } catch (error) {
     if (error.response) {
       console.error("Jack的卡片API報錯啦！狀態碼:", error.response.status);

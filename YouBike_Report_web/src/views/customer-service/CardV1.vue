@@ -13,12 +13,11 @@
       style="display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; overflow-x: auto;"
     >
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 6px;">
-        <span class="text-danger fw-bold">*</span>
         <label class="fw-bolder mb-0" style="white-space: nowrap;">手機號碼:</label>
         <div style="width: 140px;">
           <n-input 
             v-model:value="phoneValue" 
-            placeholder="必填..." 
+            placeholder="選填..." 
             clearable 
             @keyup.enter="search" 
           />
@@ -27,7 +26,7 @@
 
       <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px; border-left: 2px solid #ccc; padding-left: 12px;">
         <label class="fw-bolder mb-0" style="white-space: nowrap;">外觀卡號:</label>
-        <div style="width: 160px;">
+        <div style="width: 200px;">
           <n-input 
             v-model:value="cardValue" 
             placeholder="選填..." 
@@ -90,12 +89,11 @@ const exceldata = ref([]);
 const excelename = ref("1.0卡片查詢");
 const excelecolumn = ref([]);
 
-// 🚀 調整欄位寬度：放大「使用者帳號」與「晶片號碼」
 const columns = ref([
   { key: "item1", align: "center", title: "行動電話", width: 110 }, 
-  { key: "item2", align: "center", title: "使用者帳號", minWidth: 200 }, // 👈 加寬防擠壓
+  { key: "item2", align: "center", title: "使用者帳號", minWidth: 200 }, 
   { key: "item3", align: "center", title: "外觀卡號", width: 160 },
-  { key: "item4", align: "center", title: "晶片號碼", minWidth: 220 }, // 👈 加寬防擠壓
+  { key: "item4", align: "center", title: "晶片號碼", minWidth: 220 }, 
   { key: "item5", align: "center", title: "註冊時間", width: 160 },
   { key: "item6", align: "center", title: "停用時間", width: 160 },
   { key: "item7", align: "center", title: "加保時間", width: 160 },
@@ -119,8 +117,9 @@ const search = async () => {
   const searchPhone = (phoneValue.value || "").trim();
   const searchCard = (cardValue.value || "").trim();
 
-  if (!searchPhone) {
-    return swal({ icon: "error", title: "手機號碼為必填項目", showConfirmButton: false, timer: 1500 });
+  // 🚀 關鍵防呆：改成「至少輸入一項查詢條件」，保護 DB 不被全表掃描
+  if (!searchPhone && !searchCard) {
+    return swal({ icon: "warning", title: "請至少輸入一項查詢條件", showConfirmButton: false, timer: 1500 });
   }
 
   try {
@@ -133,7 +132,6 @@ const search = async () => {
     
     const resData = res.data?.data || []; 
 
-    // 🚀 清除 +00：四個時間欄位都加上 .replace('+00', '')
     let mappedData = resData.map((item) => ({
       item1: item['行動電話'] || '',
       item2: item['使用者帳號'] || '',
@@ -173,13 +171,13 @@ const search = async () => {
 
 /* 一灰一白的 CSS 設定 */
 :deep(.row-even td) {
-  background-color: #ffffff !important; /* 白色 */
+  background-color: #ffffff !important; 
 }
 :deep(.row-odd td) {
-  background-color: #e8e8e8 !important; /* 淺灰色 */
+  background-color: #e8e8e8 !important; 
 }
 :deep(.n-data-table-tr:hover td) {
-  background-color: #e6f7ff !important; /* 滑鼠懸停時的淺藍色 */
+  background-color: #e6f7ff !important; 
 }
 
 /* 深色模式適配 */
