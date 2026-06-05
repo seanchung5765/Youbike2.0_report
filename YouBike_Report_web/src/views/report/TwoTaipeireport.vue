@@ -1,6 +1,7 @@
 <template>
   <div class="container-fluid px-0">
     <loading v-model:active="isLoading" :can-cancel="false" :is-full-page="true" />
+    
     <div class="row mx-0">
       <h1 class="report-h1 fw-bold">見車率統計日報</h1>
     </div>
@@ -53,11 +54,11 @@
 
       <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
         <button type="button" class="btn btn-info text-light" style="white-space: nowrap;" @click="clearDate">清空</button>
-        <button type="button" class="btn btn-primary text-light" style="white-space: nowrap;" @click="search">搜尋匯出</button>
+        <button type="button" class="btn btn-primary text-light" style="white-space: nowrap;" @click="search">搜尋並匯出</button>
       </div>
     </form>
 
-    <n-result v-if="data.length === 0" class="mt-5" status="info" title="此頁面只供下載 EXCEL" description="請選擇條件後點擊搜尋匯出" />
+    <n-result v-if="data.length === 0" class="mt-5" status="info" title="此頁面只供下載 EXCEL" description="請選擇條件後點擊搜尋並匯出" />
   </div>
 </template>
 
@@ -67,7 +68,7 @@ import { useUserStore } from "../../stores/userdata";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { NDatePicker, NSelect, NResult, NCheckbox } from "naive-ui";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx"; // 🚀 引入 XLSX 套件
 import { getGcpReport } from "@/api/report";
 import { getAllCities } from "@/api/admin";
 
@@ -93,7 +94,6 @@ const statusOptions = [
   { label: "見車率", value: "見車率" }, { label: "見位率", value: "見位率" }
 ];
 
-// --- 🚀 城市選單 (API 動態載入) ---
 const cityOptions = ref([]);
 
 const loadCities = async () => {
@@ -123,15 +123,12 @@ watch(city, () => { selectstationvalue.value = []; });
 
 const clearDate = () => { starttimestamp.value = null; endtimestamp.value = null; };
 
-// --- 日期防呆 ---
-// --- 日期防呆 ---
 const MIN_DATE = new Date(2023, 0, 1).getTime();
 const getTodayStart = () => new Date().setHours(0, 0, 0, 0);
 
 const disableStartDate = (ts) => {
   if (ts < MIN_DATE || ts >= getTodayStart()) return true;
   if (endtimestamp.value) {
-    // 🚀 將 YYYY-MM-DD 轉成 YYYY/MM/DD，強制 JS 使用本地時間 0 點
     const endDateTs = new Date(endtimestamp.value.replace(/-/g, '/')).getTime();
     return ts > endDateTs || ts < endDateTs - 30 * 86400000;
   }
@@ -141,7 +138,6 @@ const disableStartDate = (ts) => {
 const disableEndDate = (ts) => {
   if (ts < MIN_DATE || ts >= getTodayStart()) return true;
   if (starttimestamp.value) {
-    // 🚀 將 YYYY-MM-DD 轉成 YYYY/MM/DD，強制 JS 使用本地時間 0 點
     const startDateTs = new Date(starttimestamp.value.replace(/-/g, '/')).getTime();
     return ts < startDateTs || ts > startDateTs + 30 * 86400000;
   }
@@ -193,13 +189,19 @@ const search = async () => {
       return row;
     });
 
-    if (!data.value.length) return errorAlert("查稱無資料");
+    if (!data.value.length) return errorAlert("查無資料");
 
+    // 🚀 關鍵修正：完美的 XLSX 產出邏輯
     const headers = ["Date", "責任區", "場站代號", "站名", "狀態", "時間單位", ...Array.from({length: 24}, (_, i) => i.toString()), "總計"];
     const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(data.value, { skipHeader: true });
+    
+    // 1. 先用標題建立一張乾淨的表 (只佔用 A1 這一行)
+    const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+    
+    // 2. 把 JSON 資料附加到表上，並且指定從 A2 (第二行) 開始貼，第一筆資料就不會被吃掉了！
+    XLSX.utils.sheet_add_json(worksheet, data.value, { skipHeader: true, origin: "A2" });
+    
     XLSX.utils.book_append_sheet(workbook, worksheet, "sheet1");
-    XLSX.utils.sheet_add_aoa(worksheet, [headers], { origin: "A1" });
     XLSX.writeFile(workbook, `見車率日報_${city.value}_${starttimestamp.value}.xlsx`);
 
   } catch (e) {
