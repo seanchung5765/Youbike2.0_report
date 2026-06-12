@@ -18,3 +18,8 @@ export const getV1Member = (data) => {
 export const getV1Cards = (data) => {
   return apiClient.post('/report/v1/cards', data);
 };
+
+// 1.0 交易查詢 - 更新備註
+export const updateV1TransactionRemark = (data) => {
+  return apiClient.post('/report/v1/transaction/remark', data);
+};

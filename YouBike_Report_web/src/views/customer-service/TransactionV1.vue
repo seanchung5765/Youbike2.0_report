@@ -49,6 +49,10 @@
       </div>
 
       <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
+        <button type="button" class="btn btn-warning text-dark fw-bold" style="white-space: nowrap;" @click="saveAllRemarks">
+          <i class="bi bi-save-fill me-1"></i>批次儲存
+          <span v-if="unsavedCount > 0" class="badge bg-danger ms-1">{{ unsavedCount }}</span>
+        </button>
         <button type="button" class="btn btn-info text-light" style="white-space: nowrap;" @click="clearForm">清空</button>
         <button type="button" class="btn btn-success text-light" style="white-space: nowrap;" @click="search">搜尋</button>
         <output-excel
@@ -73,6 +77,7 @@
           :single-line="false"
           striped
           flex-height
+          :scroll-x="1400" 
           style="height: 100%;"
           :class="{ 'dark-mode-table': ischange }"
           :row-class-name="rowClassName" 
@@ -82,30 +87,90 @@
 </template>
 
 <script setup>
-import { ref, inject } from "vue";
+import { ref, inject, h, computed } from "vue";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
-// 🚀 關鍵修正 1：把 NSelect 加回 import 中
+// 拿掉了用不到的 NButton 跟 NInputGroup，保持乾淨
 import { NDataTable, NInput, NSelect } from "naive-ui"; 
 import OutputExcel from "../../components/OutputExcel.vue";
-import { getV1Transaction } from "@/api/report"; 
+import { getV1Transaction, updateV1TransactionRemark } from "@/api/report"; 
 
 const ischange = inject("ischange");
 const swal = inject("$swal");
-
 const isLoading = ref(false);
 
 const phoneValue = ref(""); 
 const cardValue = ref(""); 
-const stationValue = ref(null); // 🚀 下拉選單預設給 null
+const stationValue = ref(null);
 
-// 🚀 關鍵修正 2：定義扣款場站的下拉選單選項
+// 🚀 計算目前有幾筆未儲存的變更
+const unsavedCount = computed(() => datatable.value.filter(r => r.isModified).length);
+
+// 🚀 批次儲存所有有修改的備註
+const saveAllRemarks = async () => {
+  const unsavedRows = datatable.value.filter(r => r.isModified);
+  
+  if (unsavedRows.length === 0) {
+    return swal({ icon: "info", title: "目前沒有未儲存的變更", showConfirmButton: false, timer: 1500 });
+  }
+
+  try {
+    isLoading.value = true;
+    
+    // 平行發送所有修改過的 API
+    const promises = unsavedRows.map(row => 
+      updateV1TransactionRemark({
+        ID: parseInt(row.id),
+        remark: row.item_remark || ""
+      })
+    );
+    
+    await Promise.all(promises);
+
+    // 儲存成功後，重置狀態
+    unsavedRows.forEach(row => {
+      row.original_remark = row.item_remark;
+      row.isModified = false;
+    });
+
+    swal({
+      toast: true, position: 'top-end', icon: 'success', 
+      title: `成功儲存 ${unsavedRows.length} 筆資料`, 
+      showConfirmButton: false, timer: 2000 
+    });
+
+  } catch (error) {
+    console.error("批次儲存失敗:", error);
+    swal({ icon: "error", title: "批次儲存發生錯誤", showConfirmButton: false, timer: 1500 });
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// 🚀 防呆檢查：如果有未儲存資料，警告使用者
+const checkUnsavedChanges = async () => {
+  if (unsavedCount.value > 0) {
+    const result = await swal({
+      title: "注意！尚有未存檔的變更",
+      text: `您有 ${unsavedCount.value} 筆繳費狀態尚未儲存，確定要放棄這些變更嗎？`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "確定放棄",
+      cancelButtonText: "取消，我要先儲存"
+    });
+    return result.isConfirmed; // 如果點了確定放棄，回傳 true
+  }
+  return true; // 沒變更直接放行
+};
+
+
 const stationOptions = [
   { label: "9970", value: "9970" }
 ];
 
 const datatable = ref([]);
-
 const exceldata = ref([]);
 const excelename = ref("1.0交易查詢");
 const excelecolumn = ref([]);
@@ -121,10 +186,36 @@ const columns = ref([
   { key: "item18", align: "center", title: "扣款場站", width: 80 },
   { key: "item12", align: "center", title: "交易金額", width: 80 },
   { key: "item13", align: "center", title: "租借時間(分)", width: 90 },
-  { key: "item15", align: "center", title: "手機號碼", width: 110 }
+  { key: "item15", align: "center", title: "手機號碼", width: 110 },
+  
+  // 👉 是否已繳費下拉選單
+  { 
+    key: "item_remark", 
+    align: "center", 
+    title: "是否已繳費", 
+    width: 120, 
+    render(row) {
+      return h(NSelect, {
+        value: row.item_remark,
+        options: [{ label: "是", value: "是" }],
+        placeholder: "請選擇",
+        clearable: true,
+        // 🚀 給予黃色外框提示
+        status: row.isModified ? "warning" : undefined, 
+        onUpdateValue(v) {
+          row.item_remark = v;
+          row.isModified = (row.item_remark !== row.original_remark);
+        }
+      });
+    }
+  }
 ]);
 
-const clearForm = () => {
+const clearForm = async () => {
+  // 🚀 清空前先檢查是否有未存檔資料
+  const canProceed = await checkUnsavedChanges();
+  if (!canProceed) return;
+
   phoneValue.value = "";
   cardValue.value = "";
   stationValue.value = null;
@@ -140,12 +231,14 @@ const rowClassName = (row, index) => {
 
 // --- API 請求 ---
 const search = async () => {
-  // 防呆邏輯 1：手機號碼必填
+  // 🚀 搜尋前先檢查是否有未存檔資料
+  const canProceed = await checkUnsavedChanges();
+  if (!canProceed) return;
+
   if (!phoneValue.value.trim()) {
     return swal({ icon: "error", title: "手機號碼為必填項目", showConfirmButton: false, timer: 1500 });
   }
 
-  // 🚀 關鍵修正 3：因為下拉選單沒選時是 null，直接拿 value 判斷，避免呼叫 .trim() 報錯
   const currentStation = stationValue.value || "";
 
   try {
@@ -161,6 +254,10 @@ const search = async () => {
     const resData = res.data?.data || []; 
 
     let mappedData = resData.map((item, index) => ({
+      id: item['ID'] || item['id'] || null,
+      item_remark: item['remark'] || item['備註'] || '',
+      original_remark: item['remark'] || item['備註'] || '', // 紀錄原始值
+      isModified: false, // 狀態預設為未修改
       item1: (item['還車時間'] || '').replace('+00', ''),
       item2: (item['借車時間'] || '').replace('+00', ''),
       item4: item['還車場站'] || '',
@@ -184,11 +281,10 @@ const search = async () => {
 
     const seenCards = new Set();
     mappedData.forEach(row => {
-      // 確保有卡號才做紀錄，避免空卡號互相干擾
       if (row.item9 && row.item9.trim() !== "") {
         if (!seenCards.has(row.item9)) {
-          row.isLatest = true;       // 第一次遇到這個卡號，標記為最新
-          seenCards.add(row.item9);  // 把這張卡號記進黑名單，之後遇到的都不算最新
+          row.isLatest = true;       
+          seenCards.add(row.item9);  
         } else {
           row.isLatest = false;
         }
@@ -199,7 +295,14 @@ const search = async () => {
 
     datatable.value = mappedData;
 
-    exceldata.value = [...datatable.value];
+    exceldata.value = mappedData.map((row) => {
+      const cleanRow = {};
+      columns.value.forEach((col) => {
+        cleanRow[col.title] = row[col.key]; 
+      });
+      return cleanRow;
+    });
+
     excelecolumn.value = columns.value.map(c => c.title);
 
     if (datatable.value.length === 0) {
@@ -218,7 +321,7 @@ const search = async () => {
 <style scoped>
 :deep(.n-data-table-td) {
   white-space: normal !important; 
-  word-break: break-word;         
+  word-break: break-word;        
 }
 
 :deep(.row-even td) {
@@ -226,7 +329,7 @@ const search = async () => {
 }
 
 :deep(.row-highlight td) {
-  background-color: #ffd650fb !important; /* 你可以改成你喜歡的黃色，例如 #ffffb3 */
+  background-color: #ffd650fb !important; 
 }
 :deep(.n-data-table-tr:hover td) {
   background-color: #e6f7ff !important; 

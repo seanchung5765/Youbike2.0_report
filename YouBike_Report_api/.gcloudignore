@@ -1,0 +1,30 @@
+# ==========================================
+# YouBike_Report_api - GCP Cloud Build 忽略清單
+# ==========================================
+
+# 1. 封鎖敏感密碼、憑證與本機設定
+config/
+.env
+.env.*
+*.pem
+*.json
+
+# 💡 終極防禦：強制放行 npm 必要檔案（防止上方 *.json 誤殺它們）
+!package.json
+!package-lock.json
+
+# 2. 封鎖本機肥大套件與編輯器快取
+node_modules/
+.vs/
+.vscode/
+.git/
+.gitignore
+
+# 3. 封鎖 Docker 自身設定與相鄰的 web 目錄（防止跨目錄誤抓）
+../YouBike_Report_web/
+
+# 4. 封鎖本機開發殘留的雜物與資料庫
+main.py
+webreport_userdb/
+*_backup/
+*.md

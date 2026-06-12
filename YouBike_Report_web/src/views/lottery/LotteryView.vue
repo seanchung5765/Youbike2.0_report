@@ -90,7 +90,7 @@
       <div class="col-12 gx-md-5 mb-3 mb-md-4">
         <div class="d-flex align-items-center mb-3">
           <label for="userlist" class="form-label fw-bolder fs-3 mb-0 me-3">
-            <i class="bi bi-person-fill-up me-1" style="color: #18a058"></i>抽獎名單:
+            <i class="bi bi-person-fill-up me-1" style="color: #18a058"></i>抽獎名單 (最多預覽1萬筆)
           </label>
           <input
             type="file"
@@ -105,7 +105,7 @@
         <div 
           v-if="exceldata.length > 0" 
           class="table-responsive bg-white border border-2 rounded-3 shadow-sm" 
-          style="max-height: 400px; overflow-y: auto;"
+          style="max-height: 1000px; overflow-y: auto;"
         >
           <table class="table table-striped table-hover table-sm mb-0 text-nowrap align-middle">
             <thead class="table-light" style="position: sticky; top: 0; z-index: 1;">
@@ -137,7 +137,7 @@
         <div 
           v-else
           class="form-control bg-light d-flex align-items-center justify-content-center text-muted shadow-sm" 
-          style="min-height: 200px; border: 2px dashed #ccc;"
+          style="min-height: 900px; border: 2px dashed #ccc;"
         >
           <div class="text-center">
             <i class="bi bi-file-earmark-spreadsheet fs-1 mb-2"></i>
@@ -214,22 +214,25 @@
 </template>
 
 <script setup>
-import { ref, inject, computed, onMounted, onUnmounted } from "vue";
+import { ref, shallowRef, inject, computed, onMounted, onUnmounted } from "vue";
 import { NModal } from "naive-ui";
 import { Vue3Lottie } from "vue3-lottie";
 import * as XLSX from "xlsx";
 import LottieJson from '@/assets/Animation - 1690257463274.json';
+import Loading from "vue-loading-overlay"; 
+import "vue-loading-overlay/dist/css/index.css";
 
 // --- 狀態與變數管理 ---
 const swal = inject("$swal");
 const isFullScreen = ref(false);
 const showModal = ref(false);
+const isLoading = ref(false);
 const adImageUrl = ref(null);
 const adFileInput = ref(null);
 const file = ref();
 const name = ref("");
 const winnermantotal = ref([]);
-const exceldata = ref([]);
+const exceldata = shallowRef([]);
 let inputexceltitle = null;
 
 const toggleFullScreen = () => {
@@ -274,7 +277,7 @@ onUnmounted(() => {
 const giftsetarr = ref([{ name: null, value: 1, key: 1 }]);
 
 const excelPreviewList = computed(() => {
-  return exceldata.value.length > 1 ? exceldata.value.slice(1) : [];
+  return exceldata.value.length > 1 ? exceldata.value.slice(1, 10001) : []; 
 });
 
 const NotAlert = (text) => {
@@ -320,41 +323,55 @@ const shuffleArray = (array) => {
 };
 
 const submit = async () => {
-  const ticketnum = exceldata.value[0].indexOf("合計票數");
-  const phonenum = exceldata.value[0].indexOf("手機號碼");
-  const numbernum = exceldata.value[0].indexOf("外觀卡號");
+  const dataArray = exceldata.value; // 從 shallowRef 拿出原始陣列
+  const ticketnum = dataArray[0].indexOf("合計票數");
+  const phonenum = dataArray[0].indexOf("手機號碼");
+  const numbernum = dataArray[0].indexOf("外觀卡號");
 
   if (ticketnum === -1 || phonenum === -1 || numbernum === -1) {
     return NotAlert("EXCEL 格式錯誤：請確認包含手機號碼、外觀卡號、合計票數");
   }
 
+  // 算出所有要抽的獎項陣列 (例如: ['頭獎', '二獎', '二獎', '普獎'...])
   const prizesToDraw = giftsetarr.value.flatMap(gift => Array(Number(gift.value)).fill(gift.name));
 
+  // 建立抽獎池 (因為不用 Vue Proxy，原生 JS 放 500 萬個指標其實非常快)
   let pool = [];
-  exceldata.value.slice(1).forEach((row) => {
+  const rows = dataArray.slice(1);
+  
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
     const tickets = parseInt(row[ticketnum]) || 0;
-    for (let i = 0; i < tickets; i++) {
-      pool.push(row);
+    for (let t = 0; t < tickets; t++) {
+      pool.push(row); 
     }
-  });
+  }
 
+  // 檢查總人數是否夠抽
   const uniqueUsers = new Set(pool.map(item => String(item[phonenum]))).size;
   if (uniqueUsers < prizesToDraw.length) {
     return NotAlert(`抽獎人數不足：符合資格的不重複人數(${uniqueUsers}) 小於 獎品總數(${prizesToDraw.length})`);
   }
 
-  pool = shuffleArray(pool);
-
   const winners = [];
   const wonPhones = new Set();
   const wonCards = new Set();
 
-  for (const candidate of pool) {
-    if (winners.length === prizesToDraw.length) break;
+  // 🚀 高速隨機抽取 (取代整包 Shuffle，改為隨機抓取索引)
+  // 這樣不用把幾百萬的陣列整個洗牌，效能提升 100 倍！
+  while (winners.length < prizesToDraw.length && pool.length > 0) {
+    // 隨機選一個 index
+    const randomIndex = Math.floor(Math.random() * pool.length);
+    const candidate = pool[randomIndex];
+    
+    // 把抽過的從池子裡移除，避免一直抽到同一個位置 (使用尾部替換法，效能極高)
+    pool[randomIndex] = pool[pool.length - 1];
+    pool.pop();
 
     const phone = String(candidate[phonenum]);
     const card = String(candidate[numbernum]);
 
+    // 判斷是否重複中獎
     if (!wonPhones.has(phone) && !wonCards.has(card)) {
       winners.push(candidate);
       wonPhones.add(phone);
@@ -362,6 +379,7 @@ const submit = async () => {
     }
   }
 
+  // 將抽出的得獎者配對上獎品名稱
   winnermantotal.value = winners.map((winner, index) => ({
     name: prizesToDraw[index],
     value: winner,
@@ -388,9 +406,9 @@ const limitToFiveDigits = (val) => {
 const getCityName = (num) => {
   const specificMap = {
     5001: "台北市", 5002: "新北市", 5003: "桃園市", 5004: "新竹市",
-    5005: "新竹縣", 5006: "台中市", 5007: "苗栗縣", 5008: "彰化縣",
-    5010: "嘉義市", 5011: "嘉義縣", 5012: "高雄市", 5013: "台南市", 
-    5014: "屏東縣", 5082: "新竹科學園區"
+    5005: "新竹縣", 5006: "台中市", 5007: "苗栗縣", 5010: "嘉義市",
+    5011: "嘉義縣", 5012: "高雄市", 5013: "台南市", 5014: "屏東縣",
+    5082: "新竹科學園區", 5015: "台東縣"
   };
   return specificMap[num] || null;
 };
@@ -414,8 +432,8 @@ const sebmitexcel = () => {
   if (sendcarnum > 0) {
     const cityKeys = [
       "台北市", "新北市", "桃園市", "新竹市", "新竹縣", "新竹科學園區",
-      "苗栗縣", "台中市", "彰化縣", "嘉義市", "嘉義縣", "台南市", 
-      "高雄市", "屏東縣"
+      "苗栗縣", "台中市", "嘉義市", "嘉義縣", "台南市", "高雄市",
+      "屏東縣", "台東縣"
     ];
     
     const citySummary = Object.fromEntries(cityKeys.map(k => [k, 0]));

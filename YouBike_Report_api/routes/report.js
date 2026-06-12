@@ -80,6 +80,45 @@ router.post('/v1/transaction', isAuth, async (req, res, next) => {
   }
 });
 
+// 🚀 1.0 交易查詢 - 更新備註專屬 Proxy 路由
+router.post('/v1/transaction/remark', isAuth, async (req, res, next) => {
+  try {
+    const { ID, remark } = req.body;
+
+    // 防呆：確保前端有傳 ID 過來
+    if (ID === undefined || ID === null) {
+      return res.status(400).json({ success: false, message: "缺少交易 ID" });
+    }
+
+    // 🚀 從環境變數抓取網址，並設定預設備援網址
+    const targetUrl = process.env.GCP_URL_TRANS_REMARK || "https://yb1-trans-update-421613424541.asia-east1.run.app";
+    const gcptoken = await idToken(targetUrl);
+    
+    if (!gcptoken) {
+      return res.status(500).json({ success: false, message: "無法取得 GCP 授權" });
+    }
+    
+    // 把資料轉發給 Jack 的 Python API
+    const response = await axios.post(targetUrl, { 
+      ID: Number(ID), // 確保 ID 是數值
+      remark: remark || "" 
+    }, {
+      headers: { Authorization: `Bearer ${gcptoken}` },
+    });
+    
+    res.status(200).json({ success: true, data: response.data });
+
+  } catch (error) {
+    if (error.response) {
+      console.error("Jack的更新備註API報錯啦！狀態碼:", error.response.status);
+      console.error("對方給的錯誤訊息:", error.response.data);
+    } else {
+      console.error("更新備註失敗:", error.message);
+    }
+    res.status(500).json({ success: false, message: "外部 API 更新失敗" });
+  }
+});
+
 // 🚀 1.0 會員查詢的專屬 Proxy 路由 - 終極防呆相容版
 router.post('/v1/member', isAuth, async (req, res, next) => {
   try {

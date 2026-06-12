@@ -1,0 +1,11 @@
+# 忽略相鄰的後端 API 目錄，防止它被誤抓
+../YouBike_Report_api/
+
+# 忽略目前前端的肥大套件與暫存
+node_modules/
+.git/
+.vs/
+.vscode/
+dist/
+dist-ssr/
+.env
