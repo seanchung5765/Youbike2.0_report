@@ -79,7 +79,7 @@
         v-show="dataTable.length > 0"
         :columns="columns"
         :data="dataTable"
-        :scroll-x="2500"  
+        :scroll-x="3200"  
         :bordered="false"
         :single-line="false"
         striped

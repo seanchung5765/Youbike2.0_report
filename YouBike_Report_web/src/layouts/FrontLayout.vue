@@ -7,7 +7,7 @@
         collapse-mode="transform"
         :native-scrollbar="false"
         :collapsed-width="0"
-        :width="240"
+        :width="260"
         show-trigger="bar"
         bordered
       >
@@ -37,7 +37,7 @@
               <template #unchecked> 亮亮模式 </template>
             </n-switch>-->
             <div class="mt-2 fw-bold" style="font-size: 12px; color: #888; letter-spacing: 1px;">
-              v2.3.0
+              v2.3.1
             </div>
           </div>
 
