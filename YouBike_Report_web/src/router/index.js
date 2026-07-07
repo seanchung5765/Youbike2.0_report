@@ -276,6 +276,12 @@ const routes = [
         component: () => import("../views/report/PowerBIView.vue"),
         meta: { title: "PowerBI", id: 127, isValidation: true, islogin: true },
       },
+      {
+        path: "relay-station-report",
+        name: "RelayStationReport",
+        component: () => import("../views/report/RelayStationReport.vue"),
+        meta: { title: "友愛接力場站明細", id: 128, isValidation: true, islogin: true },
+      },
     ],
   },
   {

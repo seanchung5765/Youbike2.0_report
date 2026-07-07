@@ -229,4 +229,47 @@ router.post('/record-click', async (req, res, next) => {
   }
 });
 
+// 🚀 友愛接力場站明細專屬 Proxy 路由
+router.post('/relay-station', isAuth, async (req, res, next) => {
+  try {
+    const { report_name, city, begin_time, end_time } = req.body;
+
+    // 基本防呆：確保前端有傳參數過來
+    if (!city || !begin_time || !end_time) {
+      return res.status(400).json({ success: false, message: "缺少必要查詢參數" });
+    }
+
+    // 🚀 從環境變數抓取網址，並設定預設備援網址
+    const targetUrl = process.env.GCP_URL_REPORT_DATA || "https://report-data-421613424541.asia-east1.run.app";
+    const gcptoken = await idToken(targetUrl);
+    
+    if (!gcptoken) {
+      return res.status(500).json({ success: false, message: "無法取得 GCP 授權" });
+    }
+    
+    // 把資料轉發給 Python API
+    const response = await axios.post(targetUrl, { 
+      report_name: report_name || '友愛接力場站明細',
+      city: city.trim(),
+      begin_time: begin_time,
+      end_time: end_time
+    }, {
+      headers: { Authorization: `Bearer ${gcptoken}` },
+    });
+    
+    // 將取得的資料包裝好回傳給 Vue
+    let rawDataList = response.data || [];
+    res.status(200).json({ success: true, data: rawDataList });
+
+  } catch (error) {
+    if (error.response) {
+      console.error("友愛接力API報錯啦！狀態碼:", error.response.status);
+      console.error("對方給的錯誤訊息:", error.response.data);
+    } else {
+      console.error("友愛接力查詢失敗:", error.message);
+    }
+    res.status(500).json({ success: false, message: "外部 API 查詢失敗" });
+  }
+});
+
 module.exports = router;

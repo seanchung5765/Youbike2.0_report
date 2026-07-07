@@ -23,3 +23,8 @@ export const getV1Cards = (data) => {
 export const updateV1TransactionRemark = (data) => {
   return apiClient.post('/report/v1/transaction/remark', data);
 };
+
+// 友愛接力場站明細 API
+export const getRelayStationReport = (data) => {
+  return apiClient.post('/report/relay-station', data);
+};
