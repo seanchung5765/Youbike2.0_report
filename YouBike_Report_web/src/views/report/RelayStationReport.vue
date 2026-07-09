@@ -115,17 +115,18 @@ const excelename = ref("");
 const excelecolumn = ref([]);
 
 const columns = ref([
-  { key: "item1", align: "center", title: "日期", width: 120 }, 
+{ key: "item1", align: "center", title: "日期", width: 120 }, 
   { key: "item2", align: "center", title: "縣市", width: 100 }, 
   { key: "item3", align: "center", title: "行政區", width: 120 },
-  { key: "item4", align: "center", title: "場站名稱", minWidth: 200 },
-  { key: "item5", align: "center", title: "柱位數", width: 100 },
-  { key: "item6", align: "center", title: "滿借券數", width: 100 },
-  { key: "item7", align: "center", title: "還車次數", width: 100 },
-  { key: "item8", align: "center", title: "見位率", width: 100 },
-  { key: "item9", align: "center", title: "空還券數", width: 100 },
-  { key: "item10", align: "center", title: "借車次數", width: 100 },
-  { key: "item11", align: "center", title: "見車率", width: 100 }
+  { key: "item4", align: "center", title: "場站代號", width: 120 },
+  { key: "item5", align: "center", title: "場站名稱", minWidth: 200 },
+  { key: "item6", align: "center", title: "柱位數", width: 100 },
+  { key: "item7", align: "center", title: "滿借券數", width: 100 },
+  { key: "item8", align: "center", title: "還車次數", width: 100 },
+  { key: "item9", align: "center", title: "見位率", width: 100 },
+  { key: "item10", align: "center", title: "空還券數", width: 100 },
+  { key: "item11", align: "center", title: "借車次數", width: 100 },
+  { key: "item12", align: "center", title: "見車率", width: 100 }
 ]);
 
 const loadCities = async () => {
@@ -246,14 +247,15 @@ const search = async () => {
       item1: formatDate(item['日期']),
       item2: item['縣市'] || '',
       item3: item['行政區'] || '',
-      item4: item['場站名稱'] || '',
-      item5: item['柱位數'] || '',
-      item6: item['滿借券數'] || '',
-      item7: item['還車次數'] || '',
-      item8: item['見位率'] || '',
-      item9: item['空還券數'] || '',
-      item10: item['借車次數'] || '',
-      item11: item['見車率'] || ''
+      item4: item['場站代號'] || '',
+      item5: item['場站名稱'] || '',
+      item6: item['柱位數'] || '',
+      item7: item['滿借券數'] || '',
+      item8: item['還車次數'] || '',
+      item9: item['見位率'] || '',
+      item10: item['空還券數'] || '',
+      item11: item['借車次數'] || '',
+      item12: item['見車率'] || ''
     }));
 
     datatable.value = mappedData;

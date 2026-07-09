@@ -183,7 +183,16 @@ const columns = ref([
   { key: "item9", align: "center", title: "外觀卡號", width: 150 },
   { key: "item7", align: "center", title: "自行車號", width: 160 },
   { key: "item17", align: "center", title: "扣款時間", width: 165 },
-  { key: "item18", align: "center", title: "扣款場站", width: 80 },
+  { key: "item18", align: "center", title: "扣款場站", width: 80, 
+  render(row) {
+      if (row.isSpecial9970) {
+        // 使用 h 函數渲染出帶有紅色樣式的 span
+        return h('span', { style: 'color: red; font-weight: bold;' }, '9970');
+      }
+      return row.item18;
+    }
+  },
+
   { key: "item12", align: "center", title: "交易金額", width: 80 },
   { key: "item13", align: "center", title: "租借時間(分)", width: 90 },
   { key: "item15", align: "center", title: "手機號碼", width: 110 },
@@ -247,31 +256,56 @@ const search = async () => {
     const params = {
       mem_id: phoneValue.value.trim(),
       card_no: cardValue.value.trim(),
-      paystatno: currentStation
+      // 🚀 關鍵修改 1：故意傳空字串給後端，讓後端回傳所有資料，我們交給前端來「智慧過濾」
+      paystatno: "" 
     };
 
     const res = await getV1Transaction(params);
-    const resData = res.data?.data || []; 
+    let resData = res.data?.data || []; 
 
-    let mappedData = resData.map((item, index) => ({
-      id: item['ID'] || item['id'] || null,
-      item_remark: item['remark'] || item['備註'] || '',
-      original_remark: item['remark'] || item['備註'] || '', // 紀錄原始值
-      isModified: false, // 狀態預設為未修改
-      item1: (item['還車時間'] || '').replace('+00', ''),
-      item2: (item['借車時間'] || '').replace('+00', ''),
-      item4: item['還車場站'] || '',
-      item5: item['借車場站'] || '',
-      item7: item['自行車號'] || '',
-      item8: item['票卡種類'] || '',
-      item9: item['外觀卡號'] || '',
-      item11: item['費率'] || '',
-      item12: (item['交易金額'] === '' || item['交易金額'] == null) ? '0' : item['交易金額'],
-      item13: item['租用(分)'] || '',
-      item15: item['手機號碼'] || '',
-      item17: (item['扣款時間'] || '').replace('+00', ''),
-      item18: item['扣款場站'] || ''
-    }));
+    // 🚀 關鍵修改 2：前端智慧過濾邏輯
+    if (currentStation !== "") {
+      resData = resData.filter(item => {
+        const station = (item['扣款場站'] || '').trim();
+        const amount = Number(item['交易金額']) || 0;
+        
+        if (currentStation === '9970') {
+          // 當搜尋 9970 時：保留原本就是 9970 的，以及「空白且金額大於0」的特殊紅字單
+          return station === '9970' || (station === '' && amount > 0);
+        }
+        
+        // 如果是搜尋其他場站，就照常比對
+        return station === currentStation;
+      });
+    }
+
+    let mappedData = resData.map((item, index) => {
+      const item18 = (item['扣款場站'] || '').trim();
+      const item12 = (item['交易金額'] === '' || item['交易金額'] == null) ? '0' : String(item['交易金額']);
+      
+      const isSpecial9970 = (item18 === '' && Number(item12) > 0);
+
+      return {
+        id: item['ID'] || item['id'] || null,
+        item_remark: item['remark'] || item['備註'] || '',
+        original_remark: item['remark'] || item['備註'] || '', // 紀錄原始值
+        isModified: false, // 狀態預設為未修改
+        item1: (item['還車時間'] || '').replace('+00', ''),
+        item2: (item['借車時間'] || '').replace('+00', ''),
+        item4: item['還車場站'] || '',
+        item5: item['借車場站'] || '',
+        item7: item['自行車號'] || '',
+        item8: item['票卡種類'] || '',
+        item9: item['外觀卡號'] || '',
+        item11: item['費率'] || '',
+        item12: item12,
+        item13: item['租用(分)'] || '',
+        item15: item['手機號碼'] || '',
+        item17: (item['扣款時間'] || '').replace('+00', ''),
+        item18: item18,
+        isSpecial9970: isSpecial9970 // 記錄此筆資料是否要顯示紅色 9970
+      };
+    });
 
     mappedData.sort((a, b) => {
       if (a.item2 > b.item2) return -1; 
@@ -298,7 +332,11 @@ const search = async () => {
     exceldata.value = mappedData.map((row) => {
       const cleanRow = {};
       columns.value.forEach((col) => {
-        cleanRow[col.title] = row[col.key]; 
+        if (col.key === "item18" && row.isSpecial9970) {
+          cleanRow[col.title] = "9970";
+        } else {
+          cleanRow[col.title] = row[col.key]; 
+        }
       });
       return cleanRow;
     });
