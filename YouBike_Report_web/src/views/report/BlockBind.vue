@@ -163,7 +163,18 @@ const rowClassName = (row, index) => {
 };
 
 const makeExecl = (nowdata, nowcolumn, name) => {
-  exceldata.value = [...nowdata];
+  // 🚀 迴圈重組：為了避開 JS 強制排序「數字 Key (如10, 11)」的底層機制，
+  // 我們在傳給 Excel 之前，把所有的 Key 換成統一格式的安全字串 (如 col_00, col_01)
+  exceldata.value = nowdata.map(row => {
+    const cleanRow = {};
+    nowcolumn.forEach((col, index) => {
+      // 💡 加上 "col_" 前綴，保證它是純字串，JS 就不會雞婆幫你排序了！
+      const safeKey = `col_${String(index).padStart(2, '0')}`;
+      cleanRow[safeKey] = row[col.key]; 
+    });
+    return cleanRow;
+  });
+  
   excelename.value = name;
   excelecolumn.value = nowcolumn.map(item => item.title);
 };

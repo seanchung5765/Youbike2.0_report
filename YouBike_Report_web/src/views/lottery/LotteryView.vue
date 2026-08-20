@@ -335,7 +335,7 @@ const submit = async () => {
   // 算出所有要抽的獎項陣列 (例如: ['頭獎', '二獎', '二獎', '普獎'...])
   const prizesToDraw = giftsetarr.value.flatMap(gift => Array(Number(gift.value)).fill(gift.name));
 
-  // 建立抽獎池 (因為不用 Vue Proxy，原生 JS 放 500 萬個指標其實非常快)
+  // 建立抽獎池
   let pool = [];
   const rows = dataArray.slice(1);
   
@@ -347,31 +347,27 @@ const submit = async () => {
     }
   }
 
-  // 檢查總人數是否夠抽
-  const uniqueUsers = new Set(pool.map(item => String(item[phonenum]))).size;
-  if (uniqueUsers < prizesToDraw.length) {
-    return NotAlert(`抽獎人數不足：符合資格的不重複人數(${uniqueUsers}) 小於 獎品總數(${prizesToDraw.length})`);
+  // 🚀 修改：移除阻擋機制，只要確認池子裡還有人就能抽
+  if (pool.length === 0) {
+    return NotAlert("名單中沒有符合資格的抽獎者！");
   }
 
   const winners = [];
   const wonPhones = new Set();
   const wonCards = new Set();
 
-  // 🚀 高速隨機抽取 (取代整包 Shuffle，改為隨機抓取索引)
-  // 這樣不用把幾百萬的陣列整個洗牌，效能提升 100 倍！
+  // 高速隨機抽取：當獎項還沒發完，且名單裡還有人時繼續抽
   while (winners.length < prizesToDraw.length && pool.length > 0) {
-    // 隨機選一個 index
     const randomIndex = Math.floor(Math.random() * pool.length);
     const candidate = pool[randomIndex];
     
-    // 把抽過的從池子裡移除，避免一直抽到同一個位置 (使用尾部替換法，效能極高)
+    // 尾部替換法
     pool[randomIndex] = pool[pool.length - 1];
     pool.pop();
 
     const phone = String(candidate[phonenum]);
     const card = String(candidate[numbernum]);
 
-    // 判斷是否重複中獎
     if (!wonPhones.has(phone) && !wonCards.has(card)) {
       winners.push(candidate);
       wonPhones.add(phone);
@@ -379,13 +375,12 @@ const submit = async () => {
     }
   }
 
-  // 將抽出的得獎者配對上獎品名稱
+  // 將抽出的得獎者配對上獎品名稱 (人數若不夠，陣列長度就會停在實際抽出的人數，自動依序配對前幾名的獎項)
   winnermantotal.value = winners.map((winner, index) => ({
     name: prizesToDraw[index],
     value: winner,
   }));
 };
-
 const startlottery = () => {
   if (!name.value) return NotAlert("請輸入抽獎活動名稱");
   if (!giftsetarr.value[0].name) return NotAlert("請輸入至少一個獎品名稱");
@@ -416,6 +411,15 @@ const getCityName = (num) => {
 const sebmitexcel = () => {
   const workbook = XLSX.utils.book_new();
   
+  // 🚀 新增：第一個分頁「所有得獎者名單」
+  const allWinnersSheetData = [["中獎獎項", ...inputexceltitle]]; 
+  winnermantotal.value.forEach(winner => {
+    // 每一列的最前面塞入該得獎者的獎項名稱
+    allWinnersSheetData.push([winner.name, ...winner.value]); 
+  });
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(allWinnersSheetData), "所有得獎者名單");
+
+  // 原本的分類邏輯：依照獎項分頁
   const groupedWinners = winnermantotal.value.reduce((acc, curr) => {
     if (!acc[curr.name]) acc[curr.name] = [];
     acc[curr.name].push(curr.value);
@@ -428,6 +432,7 @@ const sebmitexcel = () => {
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(sheetData), prizeName);
   });
 
+  // 場站城市統計
   const sendcarnum = exceldata.value[0].indexOf("借車場站代號");
   if (sendcarnum > 0) {
     const cityKeys = [

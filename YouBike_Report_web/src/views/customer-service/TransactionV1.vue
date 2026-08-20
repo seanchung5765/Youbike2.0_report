@@ -65,7 +65,7 @@
       </div>
     </form>
 
-    <div style="height: calc(100vh - 180px); padding-bottom: 10px; margin-top: 10px;">
+      <div style="height: calc(100vh - 180px); padding-bottom: 10px; margin-top: 10px;">
         <n-data-table
           v-show="datatable.length > 0"
           size="small"
@@ -77,7 +77,7 @@
           :single-line="false"
           striped
           flex-height
-          :scroll-x="1400" 
+          :scroll-x="1700" 
           style="height: 100%;"
           :class="{ 'dark-mode-table': ischange }"
           :row-class-name="rowClassName" 
@@ -176,14 +176,14 @@ const excelename = ref("1.0交易查詢");
 const excelecolumn = ref([]);
 
 const columns = ref([
-  { key: "item2", align: "center", title: "借車時間", width: 165 }, 
+  { key: "item2", align: "center", title: "借車時間", width: 150 }, 
   { key: "item5", align: "center", title: "借車場站", minWidth: 190 }, 
-  { key: "item1", align: "center", title: "還車時間", width: 165 },
+  { key: "item1", align: "center", title: "還車時間", width: 150 },
   { key: "item4", align: "center", title: "還車場站", minWidth: 180 },
   { key: "item9", align: "center", title: "外觀卡號", width: 150 },
   { key: "item7", align: "center", title: "自行車號", width: 160 },
-  { key: "item17", align: "center", title: "扣款時間", width: 165 },
-  { key: "item18", align: "center", title: "扣款場站", width: 80, 
+  { key: "item17", align: "center", title: "扣款時間", width: 150 },
+  { key: "item18", align: "center", title: "扣款場站", width: 75, 
   render(row) {
       if (row.isSpecial9970) {
         // 使用 h 函數渲染出帶有紅色樣式的 span
@@ -195,14 +195,14 @@ const columns = ref([
 
   { key: "item12", align: "center", title: "交易金額", width: 80 },
   { key: "item13", align: "center", title: "租借時間(分)", width: 90 },
-  { key: "item15", align: "center", title: "手機號碼", width: 110 },
+  { key: "item15", align: "center", title: "手機號碼", width: 95 },
   
   // 👉 是否已繳費下拉選單
   { 
     key: "item_remark", 
     align: "center", 
     title: "是否已繳費", 
-    width: 120, 
+    width: 100, 
     render(row) {
       return h(NSelect, {
         value: row.item_remark,
