@@ -145,15 +145,19 @@ const getdata = async () => {
     const resdata = res.data?.data || [];
 
     totaldata.value = resdata.map((element) => {
+      // 1. 先塞入員工編號跟姓名
       const row = {
         item1: element.AID,
         item2: element.name,
-        item27: element.total ?? 0,
       };
       
+      // 2. 接著跑迴圈，依序塞入 24 小時的數據 (item3 ~ item26)
       hourKeys.forEach((key, index) => {
         row[`item${index + 3}`] = element[key] ?? 0;
       });
+      
+      // 3. 🚀 最後才把合計 (item27) 塞進去，這樣它才會乖乖排在最後一欄！
+      row.item27 = element.total ?? 0;
       
       return row;
     });

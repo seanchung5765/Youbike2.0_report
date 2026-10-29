@@ -28,3 +28,13 @@ export const updateV1TransactionRemark = (data) => {
 export const getRelayStationReport = (data) => {
   return apiClient.post('/report/relay-station', data);
 };
+
+// 見車率統計日報
+export const getLookcarReport = (data) => {
+  return apiClient.post('/report/lookcar-report', data);
+};
+
+// 高雄 2.0E 可用率
+export const getKaohsiungOperRate = (data) => {
+  return apiClient.post('/report/kaohsiung-oper-rate', data);
+};

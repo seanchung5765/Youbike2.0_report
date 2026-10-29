@@ -48,5 +48,8 @@ export default defineConfig({
       },
     },
   },
-  // 👆 加到這邊結束
+  // 👇 幫你加上的打包體積警告隱藏設定
+  build: {
+    chunkSizeWarningLimit: 2000, // 將警告上限從 500kB 調高到 2000kB
+  }
 });

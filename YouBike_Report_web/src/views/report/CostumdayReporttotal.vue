@@ -134,7 +134,7 @@ const cityOptions = computed(() => {
     if (!cityData.codes) return;
 
     // 🌟 刻意排除：不需要出現的縣市直接跳過
-    const excludeList = ["嘉義縣", "竹科", "新竹科學園區"];
+    const excludeList = ["竹科", "新竹科學園區"];
     if (excludeList.some(name => cityData.name.includes(name))) {
       return; 
     }
@@ -153,11 +153,13 @@ const cityOptions = computed(() => {
       if (code2 === "Miaoli2") valKey = "Miaoli_two";
       if (code2 === "Taichung2") valKey = "Taichung_two";
       if (code2 === "Chiayi2") valKey = "Chiayi";
+      if (code2 === "Chiayi_Country2") valKey = "Chiayi_Country";
       if (code2 === "Tainan2") valKey = "Tainan";
       if (code2 === "Kaohsiung2") valKey = "Kaohsiung";
       if (code2 === "Pingtung2") valKey = "Pingtung";
       if (code2 === "Taitung2") valKey = "Taitung";
-      
+      if (code2 === "Chiayi_Country2") valKey = "Chiayi_Country";
+
       options.push({ label: cityData.name, value: valKey });
     }
   });
@@ -205,7 +207,8 @@ const getCityConfig = (cityValue) => {
     Taichung_two: { p: "Taichung_two", t: "台中2.0" },
     Tainan: { p: "Tainan", t: "台南2.0" },
     Pingtung: { p: "Pingtung", t: "屏東2.0" },
-    Taitung: { p: "Taitung", t: "台東2.0" }
+    Taitung: { p: "Taitung", t: "台東2.0" },
+    ChiayiCountry: { p: "Chiayi_Country", t: "嘉縣2.0" }
   };
 
   const c = standardMap[cityValue] || { p: "", t: "" };
@@ -224,7 +227,7 @@ const makeExecl = (nowdata, nowcolumn, name) => {
 // --- API 請求與資料處理 ---
 const getdata = async () => {
   try {
-    isLoading.value = true;
+    isLoading.value = true; 
     const params = {
       dataset_id: "report",
       table_id: "CTI_final_table",

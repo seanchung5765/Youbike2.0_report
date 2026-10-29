@@ -130,8 +130,8 @@ const cityOptions = computed(() => {
   cityConfig.value.forEach(cityData => {
     if (!cityData.codes) return;
 
-    // 🌟 刻意排除：不需要出現的縣市直接跳過
-    const excludeList = ["嘉義縣", "竹科", "新竹科學園區"];
+    // 🚀 關鍵修改 1：把 "嘉義縣" 從排除名單中拿掉！
+    const excludeList = ["竹科", "新竹科學園區"];
     if (excludeList.some(name => cityData.name.includes(name))) {
       return; 
     }
@@ -146,13 +146,18 @@ const cityOptions = computed(() => {
       if (code2 === "Newtaipei2") valKey = "NTP_two";
       if (code2 === "Taoyuan2") valKey = "Taoyuan_two";
       if (code2 === "Hsinchu2") valKey = "Hsinchu_two";
-      if (code2 === "Hsinchu_Country2") valKey = "HsinchuCountry"; // 舊版沒寫 _two
+      if (code2 === "Hsinchu_Country2") valKey = "HsinchuCountry"; 
       if (code2 === "Miaoli2") valKey = "Miaoli_two";
       if (code2 === "Taichung2") valKey = "Taichung_two";
       if (code2 === "Chiayi2") valKey = "Chiayi";
       if (code2 === "Tainan2") valKey = "Tainan";
       if (code2 === "Kaohsiung2") valKey = "Kaohsiung";
       if (code2 === "Pingtung2") valKey = "Pingtung";
+      
+      // 🚀 關鍵修改 2：補上嘉義縣的精準映射 (配合 Python 後端，不加底線)
+      // 順便幫你把台東縣也補上，避免之後需要用！
+      if (code2 === "Chiayi_Country2") valKey = "ChiayiCountry";
+      if (code2 === "Taitung2") valKey = "Taitung";
       
       options.push({ label: cityData.name, value: valKey });
     }

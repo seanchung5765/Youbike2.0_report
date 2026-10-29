@@ -206,14 +206,16 @@ const clearForm = () => {
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '';
-  const date = new Date(dateStr);
-  // 防呆：如果解析失敗，就回傳原本的字串
-  if (isNaN(date.getTime())) return dateStr; 
-  
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return String(dateStr);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  } catch (e) {
+    return String(dateStr);
+  }
 };
 
 const rowClassName = (row, index) => {
@@ -221,67 +223,110 @@ const rowClassName = (row, index) => {
 };
 
 // --- API 請求 ---
+// --- 🌟 動態產生 24 小時表頭 ---
+const generateColumns = () => {
+  const baseCols = [
+    { key: "col_date", align: "center", title: "日期", width: 120, fixed: "left" }, 
+    { key: "col_city", align: "center", title: "縣市", width: 80, fixed: "left" }, 
+    { key: "col_area", align: "center", title: "行政區", width: 100, fixed: "left" },
+    { key: "col_resp", align: "center", title: "責任區", width: 90, fixed: "left" },
+    { key: "col_sno", align: "center", title: "場站代號", width: 100, fixed: "left" },
+    { key: "col_sname", align: "center", title: "場站名稱", width: 200, fixed: "left" },
+    { key: "col_stotal", align: "center", title: "柱位數", width: 80 },
+    { key: "col_status", align: "center", title: "類型", width: 80 }, // 🚀 補上這行
+    { key: "col_total", align: "center", title: "總計", width: 80 }
+  ];
+  
+  const timeCols = Array.from({ length: 24 }, (_, i) => ({
+    key: `col_${String(i).padStart(2, '0')}`,
+    align: "center",
+    title: String(i).padStart(2, '0'),
+    width: 60
+  }));
+
+  columns.value = [...baseCols, ...timeCols];
+};
+
+// --- API 請求 ---
 const search = async () => {
   if (!cityValue.value) {
     return swal({ icon: "warning", title: "請選擇縣市", showConfirmButton: false, timer: 1500 });
   }
-  // 🚀 檢查兩個日期是否都有填寫
   if (!begin_time.value || !end_time.value) {
     return swal({ icon: "warning", title: "請選擇完整查詢區間", showConfirmButton: false, timer: 1500 });
   }
 
   try {
     isLoading.value = true;
-    
+    generateColumns(); // 建立表頭
+
+    // 🚀 關鍵 1：因為資料庫存的是「臺」，必須轉過去騙資料庫
+    const dbCityName = cityValue.value === '台南市' ? '臺南市' : cityValue.value;
+
     const params = {
-      report_name: '友愛接力場站明細',
-      city: cityValue.value,
+      report_name: '友愛接力場站明細', 
+      city: dbCityName,             // 🚀 必須改成這個！用轉換過的「臺南市」去打 API
       begin_time: begin_time.value,
       end_time: end_time.value
     };
 
     const res = await getRelayStationReport(params);
-    const resData = res.data?.data || res.data || []; 
+    const rawData = res.data?.data || res.data || [];
 
-    let mappedData = resData.map((item) => ({
-      item1: formatDate(item['日期']),
-      item2: item['縣市'] || '',
-      item3: item['行政區'] || '',
-      item4: item['場站代號'] || '',
-      item5: item['場站名稱'] || '',
-      item6: item['柱位數'] || '',
-      item7: item['滿借券數'] || '',
-      item8: item['還車次數'] || '',
-      item9: item['見位率'] || '',
-      item10: item['空還券數'] || '',
-      item11: item['借車次數'] || '',
-      item12: item['見車率'] || ''
-    }));
+    if (!Array.isArray(rawData)) {
+      throw new Error("回傳資料格式非陣列");
+    }
+
+    // 🚀 關鍵 3：資料轉換防呆處理 (把「臺」洗回「台」，讓畫面美觀)
+    const mappedData = rawData.map((item) => {
+      const rawCity = item['縣市'] ?? item['city'] ?? '';
+      
+      const row = {
+        col_date: formatDate(item['日期'] ?? item['date']),
+        col_city: rawCity === '臺南市' ? '台南市' : rawCity, // 洗回台南市
+        col_area: item['行政區'] ?? item['SxPSArea'] ?? item['s_area'] ?? '',
+        col_resp: item['責任區'] ?? item['responsible_area'] ?? '',
+        col_sno: item['場站代號'] ?? item['s_no'] ?? '',
+        col_sname: item['場站名稱'] ?? item['s_name'] ?? '',
+        col_stotal: item['柱位數'] ?? item['s_total'] ?? '0',
+        col_status: item['status'] ?? item['類型'] ?? '',
+        col_total: item['總計'] ?? item['total'] ?? '0'
+      };
+
+      // 填入 24 小時數據 (r0 ~ r23)
+      for (let i = 0; i < 24; i++) {
+        const val = item[`r${i}`];
+        row[`col_${String(i).padStart(2, '0')}`] = val !== null && val !== undefined ? val : 0;
+      }
+      return row;
+    });
 
     datatable.value = mappedData;
 
+    // 建立 Excel 資料
     exceldata.value = mappedData.map((row) => {
       const cleanRow = {};
       columns.value.forEach((col) => {
-        cleanRow[col.title] = row[col.key]; 
+        cleanRow[col.key] = row[col.key] ?? '';
       });
       return cleanRow;
     });
 
     excelename.value = `友愛接力場站明細_${cityValue.value}_${begin_time.value}至${end_time.value}`;
-    excelecolumn.value = columns.value.map(c => c.title);
+    excelecolumn.value = columns.value.map((c) => c.title);
 
     if (datatable.value.length === 0) {
-       swal({ icon: "info", title: "查無明細資料", showConfirmButton: false, timer: 1500 });
+      swal({ icon: "info", title: "查無明細資料", showConfirmButton: false, timer: 1500 });
     }
 
   } catch (error) {
-    console.error("API 查詢失敗完整錯誤:", error);
-    if (error.response && error.response.status === 404) {
-      swal({ icon: "error", title: "找不到 API 路由", text: "請確認 Node.js 後端是否有重啟！", showConfirmButton: true });
-    } else {
-      swal({ icon: "error", title: "查詢失敗，請確認連線", showConfirmButton: false, timer: 1500 });
-    }
+    console.error("前端資料解析失敗詳細原因:", error);
+    swal({
+      icon: "error",
+      title: "資料處理失敗",
+      text: error.message || "解析回傳資料時發生錯誤",
+      showConfirmButton: true
+    });
   } finally {
     isLoading.value = false;
   }

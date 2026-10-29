@@ -1,3 +1,4 @@
+//D:\維護中資料(待上傳git)\YouBike_Report\YouBike_Report_api\service\cloudSql.js
 require("dotenv").config({ path: "../.env" });
 const path = require("path");
 const fs = require("fs");
@@ -18,16 +19,10 @@ const createGCPMysqlPool = () => {
     dbConfig.socketPath = process.env.INSTANCE_UNIX_SOCKET;
     console.log("偵測到 Cloud Run 環境，使用 Unix Socket 連線 Cloud SQL");
   } else {
-    // 【地端模式】本機開發才需要讀取 SSL 憑證
+    // 【地端模式】透過本機 Cloud SQL Proxy 連線，無需在 Node.js 端設定 SSL (Proxy 會自動加密)
     dbConfig.host = process.env.GCP_MYSQL_HOST;
     dbConfig.port = process.env.GCP_MYSQL_PORT;
-    dbConfig.ssl = {
-      rejectUnauthorized: false,
-      key: fs.readFileSync(path.join(__dirname, "../cloudsql/client-key.pem")).toString(),
-      cert: fs.readFileSync(path.join(__dirname, "../cloudsql/client-cert.pem")).toString(),
-      ca: fs.readFileSync(path.join(__dirname, "../cloudsql/server-ca.pem")).toString(),
-    };
-    console.log("偵測到本地環境，使用 TCP + SSL 連線 Cloud SQL");
+    console.log("偵測到本地環境，使用 TCP 透過 Proxy 連線 Cloud SQL");
   }
 
   pool = mysql.createPool(dbConfig);

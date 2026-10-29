@@ -1,5 +1,5 @@
 # 1. 使用官方的 Node.js 輕量版映像檔 (Node 20 LTS Alpine)
-FROM node:20-alpine
+FROM node:24-alpine
 
 # ⚠️ 如果你的 Node.js 會執行 Python 腳本 (main.py)，請把下面這行開頭的 # 拿掉
 # RUN apk add --no-cache python3 make g++

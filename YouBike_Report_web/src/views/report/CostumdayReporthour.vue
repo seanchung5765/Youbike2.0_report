@@ -137,6 +137,8 @@ const cityOptions = computed(() => {
       if (code2 === "Hsinchu_Country2") valKey = "Hsinchu_Country";
       if (code2 === "Taichung2") valKey = "Taichung2";
       if (code2 === "Chiayi2") valKey = "Chiayi";
+      // 新增嘉義縣的判斷，假設代碼是 Chiayi_Country2，請根據實際代碼調整
+      if (code2 === "Chiayi_Country2") valKey = "Chiayi_Country";
       if (code2 === "Tainan2") valKey = "Tainan";
       if (code2 === "Kaohsiung2") valKey = "Kaohsiung";
       if (code2 === "Pingtung2") valKey = "Pingtung";
@@ -178,12 +180,13 @@ const columnMap = {
   Hsinchu_Country: buildCol("竹縣2.0進線數", "竹縣2.0掛斷數", "竹縣2.0接通數"),
   Miaoli_two: buildCol("苗栗2.0進線數", "苗栗2.0掛斷數", "苗栗2.0接通數"),
   Chiayi: buildCol("嘉義進線數", "嘉義掛斷數", "嘉義接通數"),
+  // 新增嘉義縣的表頭設定
+  Chiayi_Country: buildCol("嘉縣2.0進線數", "嘉縣2.0掛斷數", "嘉縣2.0接通數"),
   Taichung2: buildCol("台中2.0進線數", "台中2.0掛斷數", "台中2.0接通數"),
   Tainan: buildCol("台南2.0進線數", "台南2.0掛斷數", "台南2.0接通數"),
   Pingtung: buildCol("屏東2.0進線數", "屏東2.0掛斷數", "屏東2.0接通數"),
   Taitung: buildCol("台東2.0進線數", "台東2.0掛斷數", "台東2.0接通數")
 };
-
 // --- 斑馬紋設定 ---
 const rowClassName = (row, index) => {
   return index % 2 === 0 ? 'table-row-white' : 'table-row-gray';

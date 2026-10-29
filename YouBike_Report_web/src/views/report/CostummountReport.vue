@@ -222,10 +222,12 @@ const updateTableDisplay = () => {
   if (monthlyData.value.length === 0) return;
   const chunk = monthlyData.value[currentMonthIndex.value];
 
+  // 🚀 關鍵修改：把 item1 (項目) 的 align 改成 "left"
   const newCols = [
-    { key: "item1", align: "center", title: "項目", fixed: "left", width: 180 }
+    { key: "item1", align: "left", title: "項目", fixed: "left", width: 180 } 
   ];
   
+  // 後面的日期與數字欄位，保持置中比較容易閱讀
   for (let i = 1; i <= 31; i++) {
     const dateStr = chunk.headerRow[`date${i}`];
     if (dateStr) { 
@@ -262,7 +264,7 @@ const getDate = async () => {
     };
 
     const res = await getGcpReport(params);
-    const resdata = res.data?.data || [];
+    let resdata = res.data?.data || [];
 
     if (resdata.length === 0) {
       monthlyData.value = [];
@@ -271,13 +273,75 @@ const getDate = async () => {
       return;
     }
 
+    // ==========================================
+    // 🚀 關鍵絕招：資料過濾與名稱轉換器 (白名單)
+    // ==========================================
+    
+    // 💡 1. 建立翻譯字典：左邊是「後端傳來的原名」，右邊是「你想在畫面上顯示的新名字」
+    // （你隨時可以在這裡自由增減、修改你想保留的欄位與名稱）
+    const itemMapping = {
+      // 標題列絕對不能刪
+      "日期": "日期", 
+
+      "北區(1.0+2.0)進電數":"雙北市 進電數",
+      "北區(1.0+2.0)掛斷數(大於6秒)":"雙北市 掛斷數",
+      "台北2.0進電數":"台北市 進電數",
+      "台北2.0掛斷數(大於6秒)":"台北市 掛斷數(>6秒)",
+      "新北2.0進電數":"新北市 進電數",
+      "新北2.0掛斷數(大於6秒)":"新北市 掛斷數(>6秒)",
+
+
+      "桃園2.0進電數":"桃園市 進電數",
+      "桃園2.0掛斷數(大於6秒)": "桃園市 掛斷數(>6秒)",
+      "新竹市2.0進電數": "新竹市 進電數",
+      "新竹市2.0掛斷數(大於6秒)": "新竹市 掛斷數(>6秒)",
+      "新竹縣2.0進電數": "新竹縣 進電數",
+      "新竹縣2.0掛斷數(大於6秒)": "新竹縣 掛斷數(>6秒)",
+      "苗栗2.0進電數": "苗栗縣 進電數",
+      "苗栗2.0掛斷數(大於6秒)": "苗栗縣 掛斷數(>6秒)",
+
+      "台中市2.0進電數": "台中市 進電數",
+      "台中市2.0掛斷數(大於6秒)": "台中市 掛斷數(>6秒)",
+
+      "嘉義2.0進電數": "嘉義市 進電數",
+      "嘉義2.0掛斷數(大於6秒)": "嘉義市 掛斷數(>6秒)",
+      "嘉義縣2.0進電數": "嘉義縣 進電數",
+      "嘉義縣2.0掛斷數(大於6秒)": "嘉義縣 掛斷數(>6秒)",
+
+      "高雄2.0進電數": "高雄市 進電數",
+      "高雄2.0掛斷數(大於6秒)": "高雄市 掛斷數(>6秒)",
+      "台南2.0進電數": "台南市 進電數",
+      "台南2.0掛斷數(大於6秒)": "台南市 掛斷數(>6秒)",
+      "屏東2.0進電數": "屏東縣 進電數",
+      "屏東2.0掛斷數(大於6秒)": "屏東縣 掛斷數(>6秒)",
+      
+      "台東2.0進電數": "台東縣 進電數",
+      "台東2.0掛斷數(大於6秒)": "台東縣 掛斷數(>6秒)",
+      
+
+      
+      // ⚠️ 注意：沒有寫在這個字典裡的項目，就會被「直接丟棄不顯示」！
+    };
+
+    // 💡 2. 執行過濾與重新命名
+    resdata = resdata
+      .filter(row => itemMapping[row.item] !== undefined) // 只保留有在字典裡出現的項目
+      .map(row => {
+        return {
+          ...row, 
+          item: itemMapping[row.item] // 把舊名字替換成我們自己定義的新名字
+        };
+      });
+
+    // ==========================================
+
     buildExcelData(resdata);
 
     const chunks = [];
     let currentChunk = null;
 
     resdata.forEach(row => {
-      if (row.item === "日期") {
+      if (row.item === "日期") { // 注意：因為字典有把 "日期" 保留為 "日期"，所以這裡照常運作
         if (currentChunk) chunks.push(currentChunk);
         
         const firstDate = row.date1 || "";

@@ -53,8 +53,8 @@
       </div>
 
       <div style="display: flex; gap: 8px; flex-shrink: 0; margin-left: auto;">
-        <button type="button" class="btn btn-info text-light" style="white-space: nowrap;" @click="clearDate">清空</button>
-        <button type="button" class="btn btn-primary text-light" style="white-space: nowrap;" @click="search">搜尋並匯出</button>
+        <button type="button" class="btn btn-info text-light fw-bold" style="white-space: nowrap;" @click="clearDate">清空</button>
+        <button type="button" class="btn btn-primary text-light fw-bold" style="white-space: nowrap;" @click="search">搜尋並匯出</button>
       </div>
     </form>
 
@@ -68,9 +68,11 @@ import { useUserStore } from "../../stores/userdata";
 import Loading from "vue-loading-overlay";
 import "vue-loading-overlay/dist/css/index.css";
 import { NDatePicker, NSelect, NResult, NCheckbox } from "naive-ui";
-import * as XLSX from "xlsx"; // 🚀 引入 XLSX 套件
-import { getGcpReport } from "@/api/report";
+import * as XLSX from "xlsx";
 import { getAllCities } from "@/api/admin";
+
+// 🚀 引入兩支 API：新報表用 getLookcarReport，舊場站清單用 getGcpReport
+import { getLookcarReport, getGcpReport } from "@/api/report"; 
 
 const store = useUserStore();
 const canusecitys = store.citys || [];
@@ -85,7 +87,9 @@ const category = ref([]);
 const starttimestamp = ref(null);
 const endtimestamp = ref(null);
 const data = ref([]);
-let allStations = [];
+
+// 💡 為了絕對的安全，我們還是把它升級成 ref，避免網路很慢時的競態條件
+const allStations = ref([]); 
 
 const errorAlert = (text) => swal({ icon: "error", title: text, showConfirmButton: false, timer: 1500 });
 
@@ -100,13 +104,9 @@ const loadCities = async () => {
   try {
     const res = await getAllCities();
     const dbCities = res.data.data || [];
-    
     cityOptions.value = dbCities
       .filter(c => c.status === 'active' && canusecitys.includes(c.city_id))
-      .map(c => ({
-        label: c.city_name,
-        value: c.city_name 
-      }));
+      .map(c => ({ label: c.city_name, value: c.city_name }));
   } catch (error) {
     console.error("載入縣市失敗:", error);
   }
@@ -114,7 +114,8 @@ const loadCities = async () => {
 
 const filteredStationOptions = computed(() => {
   if (!city.value) return [];
-  return allStations
+  // 加上 .value 讀取
+  return allStations.value
     .filter(s => s.city === city.value)
     .map(s => ({ label: s.s_name_tw, value: `${s.s_no}-${s.city}` }));
 });
@@ -163,48 +164,75 @@ const search = async () => {
 
   try {
     isLoading.value = true;
-    const params = {
-      station: stationAll.value ? ["all"] : selectstationvalue.value.map(v => parseInt(v.split("-")[0])),
-      dataset_id: "data_analysis", table_id: "daily_empty_full",
-      begin_date: starttimestamp.value, end_date: endtimestamp.value,
-      city: [city.value], status: category.value,
+    
+    // 🚀 使用對接 Sean API 的新參數格式
+const params = {
+      begin_date: starttimestamp.value, 
+      end_date: endtimestamp.value,
+      city: [city.value], 
+      status: category.value,
+      // 🚀 拔掉單引號！改回原汁原味的 parseInt，傳送純數字給 BigQuery！
+      station: stationAll.value ? ["all"] : selectstationvalue.value.map(v => parseInt(v.split("-")[0]))
     };
 
-    const res = await getGcpReport(params);
+    const res = await getLookcarReport(params);
     const rawData = res.data?.data || [];
+    
+    if (!rawData.length) return errorAlert("查無資料");
 
+    // 🚀 使用 col_ 字串馬甲，防止 Excel JS 底層數字排序錯位
     data.value = rawData.map(el => {
       const row = {
-        item1: formatGcpDate(el.date), 
-        item2: el.responsible_area ?? "",
-        item3: el.s_no ?? "",
-        item4: el.s_name ?? "",
-        item5: el.status ?? "", 
-        item6: el.item ?? "",   
+        col_date: formatGcpDate(el['日期']), 
+        col_city: el['縣市'] ?? "",
+        col_sno: el['場站代號'] ?? "",
+        col_resp: el['責任區'] ?? "",
+        col_sname: el['場站名稱'] ?? "",
+        col_area: el['行政區'] ?? "",
+        col_stotal: el['車柱數'] ?? "",
+        col_status: el['類型'] ?? ""
       };
+      
+      // 塞入 00 ~ 23 的時段資料 (加上 col_ 前綴)
       for (let h = 0; h <= 23; h++) { 
-        row[`item${h + 7}`] = el[`r${h}`] ?? 0; 
+        row[`col_${String(h).padStart(2, '0')}`] = el[`r${h}`] ?? 0; 
       }
-      row.item31 = el.total ?? 0;
+      row.col_total = el['total'] ?? 0;
       return row;
     });
 
-    if (!data.value.length) return errorAlert("查無資料");
+    // 🚀 建立對應的中文 headers
+    const headers = [
+      "日期", "縣市", "場站代號", "責任區", "場站名稱", "行政區", "車柱數", "類型", 
+      ...Array.from({length: 24}, (_, i) => String(i).padStart(2, '0')), "總計"
+    ];
+    
+    // 將含有 col_ 的物件轉換成純陣列 (對齊 headers 的順序)，徹底杜絕跑版
+    const finalExcelData = data.value.map(row => {
+      const rowArr = [
+        row.col_date, row.col_city, row.col_sno, row.col_resp, row.col_sname, 
+        row.col_area, row.col_stotal, row.col_status
+      ];
+      for (let h = 0; h <= 23; h++) {
+        rowArr.push(row[`col_${String(h).padStart(2, '0')}`]);
+      }
+      rowArr.push(row.col_total);
+      return rowArr;
+    });
 
-    // 🚀 關鍵修正：完美的 XLSX 產出邏輯
-    const headers = ["Date", "責任區", "場站代號", "站名", "狀態", "時間單位", ...Array.from({length: 24}, (_, i) => i.toString()), "總計"];
     const workbook = XLSX.utils.book_new();
     
-    // 1. 先用標題建立一張乾淨的表 (只佔用 A1 這一行)
+    // 1. 寫入第一行標題
     const worksheet = XLSX.utils.aoa_to_sheet([headers]);
     
-    // 2. 把 JSON 資料附加到表上，並且指定從 A2 (第二行) 開始貼，第一筆資料就不會被吃掉了！
-    XLSX.utils.sheet_add_json(worksheet, data.value, { skipHeader: true, origin: "A2" });
+    // 2. 寫入資料 (純二維陣列) 從 A2 開始貼
+    XLSX.utils.sheet_add_aoa(worksheet, finalExcelData, { origin: "A2" });
     
-    XLSX.utils.book_append_sheet(workbook, worksheet, "sheet1");
-    XLSX.writeFile(workbook, `見車率日報_${city.value}_${starttimestamp.value}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, "見車率統計");
+    XLSX.writeFile(workbook, `見車率統計日報_${city.value}_${starttimestamp.value}至${endtimestamp.value}.xlsx`);
 
   } catch (e) {
+    console.error(e);
     errorAlert("查詢失敗");
   } finally {
     isLoading.value = false;
@@ -214,8 +242,9 @@ const search = async () => {
 onMounted(async () => {
   loadCities();
   try {
+    // 🚀 正確呼叫舊版 API 來取得場站清單 (取代我的破註解)
     const res = await getGcpReport({ dataset_id: "yb2", table_id: "station" });
-    allStations = res.data?.data || [];
+    allStations.value = res.data?.data || [];
   } catch (e) {
     console.error("無法取得場站清單", e);
   }

@@ -282,6 +282,12 @@ const routes = [
         component: () => import("../views/report/RelayStationReport.vue"),
         meta: { title: "友愛接力場站明細", id: 128, isValidation: true, islogin: true },
       },
+      {
+        path: "kaohsiung-oper-rate",
+        name: "KaohsiungOperRate",
+        component: () => import("../views/report/KaohsiungOperRate.vue"),
+        meta: { title: "高雄2.0E可用率", id: 129, isValidation: true, islogin: true },
+      },
     ],
   },
   {
@@ -357,6 +363,32 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+// 專門攔截「找不到最新 JS 檔案」的錯誤，並自動幫使用者重新整理！
+router.onError((error) => {
+  const isChunkLoadFailed = error.message.includes('Failed to fetch dynamically imported module') 
+                         || error.message.includes('Loading chunk') 
+                         || error.name === 'ChunkLoadError';
+
+  if (isChunkLoadFailed) {
+    // 取得上次自動重整的時間戳記
+    const lastReload = sessionStorage.getItem('last_chunk_error_reload');
+    const now = Date.now();
+
+    // 如果沒有重整過，或者距離上次重整已經超過 5 秒鐘 (5000毫秒)
+    if (!lastReload || now - parseInt(lastReload) > 5000) {
+      sessionStorage.setItem('last_chunk_error_reload', String(now));
+      console.warn('版本更新，正在自動重新載入頁面...');
+      window.location.reload(true); // 加上 true 嘗試強制從伺服器抓取
+    } else {
+      // 🚨 如果在 5 秒內連續觸發錯誤，代表重整也沒救，必須跳出迴圈！
+      console.error('自動重整失效');
+      
+      // 使用瀏覽器原生的 alert 提示使用者手動清除快取
+      alert("版本更新失敗\n\n請按「Ctrl + F5」或「Cmd + Shift + R」強制重新整理網頁！");
+    }
+  }
 });
 
 router.beforeEach(async (to, from, next) => {

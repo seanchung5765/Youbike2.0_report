@@ -1,23 +1,20 @@
+//D:\維護中資料(待上傳git)\YouBike_Report\YouBike_Report_api\service\googleToken.js
 require("dotenv").config({ path: require("path").join(__dirname, "../.env") });
 const fs = require("fs");
 const path = require("path");
-const { GoogleAuth } = require("google-auth-library");
+const { JWT } = require("google-auth-library");
+const axios = require("axios"); // 🚀 引入 axios 來直接呼叫 GCP 內部伺服器
 
-// 延遲時間
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// 🚀 核心升級：改用「物件」來暫存不同網址 (Audience) 的專屬 Token
 const tokenCache = {};
 
-// 把目標網址當成參數傳進來 (如果不傳，就預設吃原本環境變數裡的 GCP_URL)
 const idToken = async (targetAudience = process.env.GCP_URL) => {
   const currentTimestamp = Date.now();
-  // 緩存機制：設定為 25 分鐘提早更新，避免剛好卡在 30 分鐘邊界失效
   const twentyFiveMinutesAgo = currentTimestamp - 25 * 60 * 1000;
 
-  // 檢查這個專屬網址是否有有效緩存
   if (tokenCache[targetAudience] && tokenCache[targetAudience].exp > twentyFiveMinutesAgo) {
     return tokenCache[targetAudience].token;
   }
@@ -27,24 +24,49 @@ const idToken = async (targetAudience = process.env.GCP_URL) => {
       throw new Error("請先提供目標 URL (Audience)");
     }
 
-    // 鎖定本地開發用的實體 JSON 檔案路徑
-    const keyPath = path.join(__dirname, "../config/upheld-now-268802-d8afa282b657.json");
-    let authOptions = {};
+    let token = null;
 
-    // 環境自動判斷核心
-    if (fs.existsSync(keyPath)) {
-      authOptions = { keyFilename: keyPath };
-    } 
+    if (process.env.K_SERVICE || process.env.INSTANCE_UNIX_SOCKET) {
+      
+      // ☁️ 【雲端模式】終極解法：直接向 Cloud Run 內建的 Metadata 伺服器拿 Token，繞過所有套件 Bug！
+      console.log(`☁️ 偵測到 Cloud Run 環境，向 Metadata 伺服器請求 Token...`);
+      
+      try {
+        const metadataResponse = await axios.get(
+          `http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity?audience=${encodeURIComponent(targetAudience)}`,
+          {
+            headers: { 'Metadata-Flavor': 'Google' }
+          }
+        );
+        token = metadataResponse.data; // 這裡拿到的直接就是純淨的 Token 字串
+      } catch (metaErr) {
+        throw new Error(`Metadata 伺服器連線失敗: ${metaErr.message}`);
+      }
 
-    // 初始化 GoogleAuth，自動處理複雜的 JWT 簽發與 Token 交換
-    const auth = new GoogleAuth(authOptions);
-    const client = await auth.getIdTokenClient(targetAudience); // 🚀 依照不同網址去要對應的鑰匙
-    const headers = await client.getRequestHeaders();
+    } else {
+      
+      // 💻 【地端模式】本地開發環境：強制讀取 JSON 金鑰，繞過 VPN
+      console.log("💻 偵測到本地環境，使用 JSON 金鑰產生 Token...");
+      const keyPath = path.join(__dirname, "../config/upheld-now-268802-baa02244d95f.json");
+      
+      if (!fs.existsSync(keyPath)) {
+        throw new Error(`找不到本機金鑰檔案，請確認路徑: ${keyPath}`);
+      }
+      
+      const keys = require(keyPath);
+      const client = new JWT({
+        email: keys.client_email,
+        key: keys.private_key,
+        additionalClaims: { target_audience: targetAudience }
+      });
+      const credentials = await client.authorize();
+      token = credentials.id_token;
+    }
 
-    // 取出 Bearer 後面的 Token 字串
-    const token = headers.Authorization.split(" ")[1];
+    if (!token) {
+      throw new Error("授權成功但沒有取得 Token");
+    }
     
-    // 🚀 將生好的鑰匙跟時間，存進對應網址的緩存裡
     tokenCache[targetAudience] = {
       token: token,
       exp: currentTimestamp
