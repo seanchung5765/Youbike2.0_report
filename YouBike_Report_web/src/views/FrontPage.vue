@@ -6,9 +6,9 @@
         <n-tab-pane name="DailySummaryTab" tab="營運儀表板">
           <DailySummaryTab />
         </n-tab-pane>
-        <n-tab-pane name="RideTrendTab" tab="騎乘數">
+        <!---<n-tab-pane name="RideTrendTab" tab="騎乘數">
           <RideTrendTab />
-        </n-tab-pane>
+        </n-tab-pane>-->
         <n-tab-pane name="BikeSlotRateTab" tab="見車見位">
           <BikeSlotRateTab />
         <!--</n-tab-pane>
